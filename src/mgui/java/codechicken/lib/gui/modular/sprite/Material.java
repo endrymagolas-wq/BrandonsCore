@@ -1,0 +1,127 @@
+// Modified for Minecraft 1.19.2 / Forge 43 by the BrandonsCore 1.19.2 port (2026-10-24, see git history); based on CodeChickenLib 1.20.1 @3b43c7f, LGPL-2.1.
+package codechicken.lib.gui.modular.sprite;
+
+import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.resources.metadata.animation.AnimationMetadataSection;
+import net.minecraft.resources.ResourceLocation;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.function.Function;
+
+/**
+ * This is similar to Minecraft's {@link net.minecraft.client.resources.model.Material}
+ * This contains the essential data required to render an atlas sprite.
+ * <p>
+ * The primary purpose of this class is to make porting between MC versions easier.
+ * It also allows for loading sprites from a custom texture atlas. Minecraft's material class can only load from vanilla atlases.
+ * <p>
+ * Created by brandon3055 on 20/08/2023
+ */
+public class Material {
+    private final ResourceLocation atlasLocation;
+    private final ResourceLocation texture;
+    private final Function<ResourceLocation, TextureAtlasSprite> spriteFunction;
+
+    @Nullable
+    private RenderType renderType;
+    @Nullable
+    private net.minecraft.client.resources.model.Material vanillaMat;
+
+    public Material(ResourceLocation atlasLocation, ResourceLocation texture, Function<ResourceLocation, TextureAtlasSprite> spriteFunction) {
+        this.atlasLocation = atlasLocation;
+        this.texture = texture;
+        this.spriteFunction = spriteFunction;
+    }
+
+    public ResourceLocation atlasLocation() {
+        return atlasLocation;
+    }
+
+    public ResourceLocation texture() {
+        return texture;
+    }
+
+    public TextureAtlasSprite sprite() {
+        return spriteFunction.apply(texture());
+    }
+
+    /**
+     * Returns the cached render type for this material.
+     * The supplied function will be used to create the render type the first time this method is called.
+     *
+     * @param typeBuilder a function that will be used to create the render type if it does not already exist.
+     * @return The render type for this material.
+     */
+    public RenderType renderType(Function<ResourceLocation, RenderType> typeBuilder) {
+        if (this.renderType == null) {
+            this.renderType = typeBuilder.apply(atlasLocation());
+        }
+        return this.renderType;
+    }
+
+    /**
+     * Convenience method to create a vertex consumer using this materials render type.
+     *
+     * @param buffers     bugger source.
+     * @param typeBuilder a function that will be used to create the render type if it does not already exist.
+     */
+    public VertexConsumer buffer(MultiBufferSource buffers, Function<ResourceLocation, RenderType> typeBuilder) {
+        return buffers.getBuffer(renderType(typeBuilder));
+    }
+
+    public net.minecraft.client.resources.model.Material getVanillaMat() {
+        if (vanillaMat == null) {
+            vanillaMat = new net.minecraft.client.resources.model.Material(atlasLocation, texture);
+        }
+        return vanillaMat;
+    }
+
+    /**
+     * Convenient method for getting a material from a vanilla texture atlas.
+     *
+     * @return an un-cached material from a vanilla atlas.
+     */
+    public static Material fromAtlas(ResourceLocation atlasLocation, String texture) {
+        return new Material(atlasLocation, new ResourceLocation(atlasLocation.getNamespace(), texture), e -> Minecraft.getInstance().getTextureAtlas(atlasLocation).apply(e));
+    }
+
+    /**
+     * Create a material from an existing sprite.
+     * Note: This will only work with sprites from a vanilla atlas.
+     */
+    @Nullable
+    public static Material fromSprite(@Nullable TextureAtlasSprite sprite) {
+        if (sprite == null) return null;
+        return new Material(sprite.atlas().location(), sprite.getName(), e -> Minecraft.getInstance().getTextureAtlas(sprite.atlas().location()).apply(e));
+    }
+
+    public static Material fromRawTexture(ResourceLocation texture) {
+        return new Material(texture, texture, FullSprite::new);
+    }
+
+    private static class FullSprite extends TextureAtlasSprite {
+        //1.19.2: TextureAtlasSprite takes the owning TextureAtlas (for atlasLocation) and a sprite Info instead of
+        //the 1.20 sprite contents object; same 1x1 sprite on a 1x1 atlas at 0,0 (u0 = v0 = 0, u1 = v1 = 1).
+        private FullSprite(ResourceLocation location) {
+            super(new TextureAtlas(location), new TextureAtlasSprite.Info(location, 1, 1, AnimationMetadataSection.EMPTY), 0, 1, 1, 0, 0, new NativeImage(1, 1, false));
+        }
+
+        @Override
+        public float getU(double u)
+        {
+            return (float) u / 16;
+        }
+
+        @Override
+        public float getV(double v)
+        {
+            return (float) v / 16;
+        }
+    }
+}
