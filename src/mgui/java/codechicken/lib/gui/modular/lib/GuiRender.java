@@ -15,19 +15,13 @@ import net.minecraft.ReportedException;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
-import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner;
-import net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.network.chat.Component;
@@ -41,13 +35,13 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.client.renderer.block.model.ItemTransforms;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.client.ForgeHooksClient;
 import net.minecraftforge.client.event.RenderTooltipEvent;
 import net.minecraftforge.common.MinecraftForge;
 import org.jetbrains.annotations.Nullable;
 import com.mojang.math.Matrix4f;
-import org.joml.Vector2ic;
 
 import java.util.List;
 import java.util.Optional;
@@ -55,18 +49,28 @@ import java.util.stream.Collectors;
 
 /**
  * This class primarily based on GuiHelper from BrandonsCore
- * But its implementation is heavily inspired by the new GuiGraphics system in 1.20+
+ * But its implementation is heavily inspired by the new vanilla gui graphics system in 1.20+
  * <p>
  * The purpose of this class is to provide most of the basic rendering functions required to render various GUI geometry.
  * This includes things like simple rectangles, textures, strings, etc.
  * <p>
+ * 1.19.2 backport notes (BrandonsCore 1.19.2 port, WP-10): there is no vanilla gui graphics class in 1.19.2, so this
+ * class works directly on a {@link PoseStack} + {@link MultiBufferSource.BufferSource}. The 1.20 "RenderWrapper"
+ * (and {@code guiGraphicsWrapper()}) is gone, {@link #convert(PoseStack)} replaces the 1.20 convert method,
+ * tooltips use the Forge 43 hooks and 1.19.2 vanilla tooltip positioning.
+ * <p>
  * Created by brandon3055 on 29/06/2023
  */
 public class GuiRender {
-    public static final RenderType SOLID = RenderType.gui();
-
-    //Used for things like events that require the vanilla GuiGraphics
-    private final RenderWrapper renderWrapper;
+    /**
+     * Equivalent of the 1.20 vanilla gui render type (which does not exist in 1.19.2):
+     * POSITION_COLOR quads, position_color shader, translucent, depth test LEQUAL.
+     */
+    public static final RenderType SOLID = RenderType.create("ccl_gui_solid", DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS, 256, RenderType.CompositeState.builder()
+            .setShaderState(new RenderStateShard.ShaderStateShard(GameRenderer::getPositionColorShader))
+            .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
+            .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
+            .createCompositeState(false));
 
     private final Minecraft mc;
     private final PoseStack pose;
@@ -79,15 +83,19 @@ public class GuiRender {
         this.mc = mc;
         this.pose = poseStack;
         this.buffers = buffers;
-        this.renderWrapper = new RenderWrapper(this);
     }
 
     public GuiRender(Minecraft mc, MultiBufferSource.BufferSource buffers) {
         this(mc, new PoseStack(), buffers);
     }
 
-    public static GuiRender convert(GuiGraphics graphics) {
-        return new GuiRender(Minecraft.getInstance(), graphics.pose(), graphics.bufferSource());
+    /**
+     * 1.19.2 replacement for the 1.20 convert method (which took the 1.20 vanilla gui graphics): wraps the given PoseStack (so the caller's
+     * transformations are carried over) and Minecraft's main buffer source.
+     */
+    public static GuiRender convert(PoseStack poseStack) {
+        Minecraft mc = Minecraft.getInstance();
+        return new GuiRender(mc, poseStack, mc.renderBuffers().bufferSource());
     }
 
     public PoseStack pose() {
@@ -152,15 +160,9 @@ public class GuiRender {
         RenderSystem.enableDepthTest();
     }
 
-    /**
-     * Only use this as a last resort! It may explode... Have fun!
-     *
-     * @return A Vanilla GuiGraphics instance that wraps this {@link GuiRender}
-     */
-    @Deprecated
-    public RenderWrapper guiGraphicsWrapper() {
-        return renderWrapper;
-    }
+    // 1.19.2 (WP-10): the 1.20 guiGraphicsWrapper() / RenderWrapper (a vanilla gui graphics subclass) cannot exist in
+    // 1.19.2. Its only internal users (tooltip events, tooltip images, item decorations) now use the PoseStack based
+    // 1.19.2 / Forge 43 APIs directly. See logs/WP-10-api-changes.md.
 
     //=== Un-Textured geometry ===//
 
@@ -1079,9 +1081,8 @@ public class GuiRender {
         TextureAtlasSprite sprite = material.sprite();
         VertexConsumer buffer = material.buffer(buffers, GuiRender::texColType);
         Matrix4f mat = pose.last().pose();
-        SpriteContents contents = sprite.contents();
-        int texWidth = contents.width();
-        int texHeight = contents.height();
+        int texWidth = sprite.getWidth();
+        int texHeight = sprite.getHeight();
         int trimWidth = texWidth - leftBorder - rightBorder;
         int trimHeight = texHeight - topBorder - bottomBorder;
         if (xSize <= texWidth) trimWidth = Math.min(trimWidth, xSize - rightBorder);
@@ -1234,9 +1235,8 @@ public class GuiRender {
     /**
      * If text is to long ti fit between x and xMaz, the text will scroll from left to right.
      * Otherwise, will render centered.
-     * This is mostly copied from {@link AbstractWidget#renderScrollingString(GuiGraphics, Font, Component, int, int, int, int, int)}
+     * This is mostly copied from the 1.20 vanilla {@code AbstractWidget#renderScrollingString} (not present in 1.19.2).
      */
-    @SuppressWarnings ("JavadocReference")
     public void drawScrollingString(Component component, double x, double y, double xMax, int colour, boolean shadow) {
         drawScrollingString(component, x, y, xMax, colour, shadow, true);
     }
@@ -1244,9 +1244,8 @@ public class GuiRender {
     /**
      * If text is to long ti fit between x and xMaz, the text will scroll from left to right.
      * Otherwise, will render centered.
-     * This is mostly copied from {@link net.minecraft.client.gui.components.AbstractWidget#renderScrollingString(GuiGraphics, Font, Component, int, int, int, int, int)}
+     * This is mostly copied from the 1.20 vanilla {@code AbstractWidget#renderScrollingString} (not present in 1.19.2).
      */
-    @SuppressWarnings ("JavadocReference")
     public void drawScrollingString(Component component, double x, double y, double xMax, int colour, boolean shadow, boolean doScissor) {
         int textWidth = font().width(component);
         double width = xMax - x;
@@ -1274,7 +1273,9 @@ public class GuiRender {
 
     public void renderTooltip(ItemStack stack, double mouseX, double mouseY, int backgroundTop, int backgroundBottom, int borderTop, int borderBottom) {
         this.tooltipStack = stack;
-        this.toolTipWithImage(Screen.getTooltipFromItem(this.mc(), stack), stack.getTooltipImage(), mouseX, mouseY, backgroundTop, backgroundBottom, borderTop, borderBottom);
+        //1.19.2: Screen.getTooltipFromItem is an instance method, this is the same logic.
+        List<Component> lines = stack.getTooltipLines(this.mc().player, this.mc().options.advancedItemTooltips ? TooltipFlag.Default.ADVANCED : TooltipFlag.Default.NORMAL);
+        this.toolTipWithImage(lines, stack.getTooltipImage(), mouseX, mouseY, backgroundTop, backgroundBottom, borderTop, borderBottom);
         this.tooltipStack = ItemStack.EMPTY;
     }
 
@@ -1293,8 +1294,8 @@ public class GuiRender {
     }
 
     public void toolTipWithImage(List<Component> tooltip, Optional<TooltipComponent> tooltipImage, double mouseX, double mouseY, int backgroundTop, int backgroundBottom, int borderTop, int borderBottom) {
-        List<ClientTooltipComponent> list = ForgeHooksClient.gatherTooltipComponents(tooltipStack, tooltip, tooltipImage, (int) mouseX, guiWidth(), guiHeight(), font());
-        this.renderTooltipInternal(list, mouseX, mouseY, backgroundTop, backgroundBottom, borderTop, borderBottom, DefaultTooltipPositioner.INSTANCE);
+        List<ClientTooltipComponent> list = ForgeHooksClient.gatherTooltipComponents(tooltipStack, tooltip, tooltipImage, (int) mouseX, guiWidth(), guiHeight(), null, font());
+        this.renderTooltipInternal(list, mouseX, mouseY, backgroundTop, backgroundBottom, borderTop, borderBottom, DEFAULT_TOOLTIP_POSITIONER);
     }
 
     public void renderTooltip(Component message, double mouseX, double mouseY) {
@@ -1302,13 +1303,13 @@ public class GuiRender {
     }
 
     public void renderTooltip(Component message, double mouseX, double mouseY, int backgroundTop, int backgroundBottom, int borderTop, int borderBottom) {
-        List<ClientTooltipComponent> list = ForgeHooksClient.gatherTooltipComponents(tooltipStack, List.of(message), Optional.empty(), (int) mouseX, guiWidth(), guiHeight(), font());
-        this.renderTooltipInternal(list, mouseX, mouseY, backgroundTop, backgroundBottom, borderTop, borderBottom, DefaultTooltipPositioner.INSTANCE);
+        List<ClientTooltipComponent> list = ForgeHooksClient.gatherTooltipComponents(tooltipStack, List.of(message), Optional.empty(), (int) mouseX, guiWidth(), guiHeight(), null, font());
+        this.renderTooltipInternal(list, mouseX, mouseY, backgroundTop, backgroundBottom, borderTop, borderBottom, DEFAULT_TOOLTIP_POSITIONER);
     }
 
     public void componentTooltip(List<Component> tooltips, double mouseX, double mouseY, int backgroundTop, int backgroundBottom, int borderTop, int borderBottom) {
-        List<ClientTooltipComponent> list = ForgeHooksClient.gatherTooltipComponents(tooltipStack, tooltips, Optional.empty(), (int) mouseX, guiWidth(), guiHeight(), font());
-        this.renderTooltipInternal(list, mouseX, mouseY, backgroundTop, backgroundBottom, borderTop, borderBottom, DefaultTooltipPositioner.INSTANCE);
+        List<ClientTooltipComponent> list = ForgeHooksClient.gatherTooltipComponents(tooltipStack, tooltips, Optional.empty(), (int) mouseX, guiWidth(), guiHeight(), null, font());
+        this.renderTooltipInternal(list, mouseX, mouseY, backgroundTop, backgroundBottom, borderTop, borderBottom, DEFAULT_TOOLTIP_POSITIONER);
     }
 
     public void componentTooltip(List<? extends FormattedText> tooltips, double mouseX, double mouseY, ItemStack stack) {
@@ -1321,8 +1322,8 @@ public class GuiRender {
 
     public void componentTooltip(List<? extends FormattedText> tooltips, double mouseX, double mouseY, int backgroundTop, int backgroundBottom, int borderTop, int borderBottom, ItemStack stack) {
         this.tooltipStack = stack;
-        List<ClientTooltipComponent> list = ForgeHooksClient.gatherTooltipComponents(tooltipStack, tooltips, Optional.empty(), (int) mouseX, guiWidth(), guiHeight(), font());
-        this.renderTooltipInternal(list, mouseX, mouseY, backgroundTop, backgroundBottom, borderTop, borderBottom, DefaultTooltipPositioner.INSTANCE);
+        List<ClientTooltipComponent> list = ForgeHooksClient.gatherTooltipComponents(tooltipStack, tooltips, Optional.empty(), (int) mouseX, guiWidth(), guiHeight(), null, font());
+        this.renderTooltipInternal(list, mouseX, mouseY, backgroundTop, backgroundBottom, borderTop, borderBottom, DEFAULT_TOOLTIP_POSITIONER);
         this.tooltipStack = ItemStack.EMPTY;
     }
 
@@ -1337,19 +1338,20 @@ public class GuiRender {
      * Warning: This tooltip method with not automatically wrap tooltip lines
      */
     public void renderTooltip(List<? extends FormattedCharSequence> tooltips, double mouseX, double mouseY, int backgroundTop, int backgroundBottom, int borderTop, int borderBottom) {
-        this.renderTooltipInternal(tooltips.stream().map(ClientTooltipComponent::create).collect(Collectors.toList()), mouseX, mouseY, backgroundTop, backgroundBottom, borderTop, borderBottom, DefaultTooltipPositioner.INSTANCE);
+        this.renderTooltipInternal(tooltips.stream().map(ClientTooltipComponent::create).collect(Collectors.toList()), mouseX, mouseY, backgroundTop, backgroundBottom, borderTop, borderBottom, DEFAULT_TOOLTIP_POSITIONER);
     }
 
     /**
      * Warning: This tooltip method with not automatically wrap tooltip lines
      */
-    public void renderTooltip(List<FormattedCharSequence> tooltips, ClientTooltipPositioner positioner, double mouseX, double mouseY, int backgroundTop, int backgroundBottom, int borderTop, int borderBottom) {
+    public void renderTooltip(List<FormattedCharSequence> tooltips, TooltipPositioner positioner, double mouseX, double mouseY, int backgroundTop, int backgroundBottom, int borderTop, int borderBottom) {
         this.renderTooltipInternal(tooltips.stream().map(ClientTooltipComponent::create).collect(Collectors.toList()), mouseX, mouseY, backgroundTop, backgroundBottom, borderTop, borderBottom, positioner);
     }
 
-    private void renderTooltipInternal(List<ClientTooltipComponent> tooltips, double mouseX, double mouseY, int backgroundTop, int backgroundBottom, int borderTop, int borderBottom, ClientTooltipPositioner positioner) {
+    private void renderTooltipInternal(List<ClientTooltipComponent> tooltips, double mouseX, double mouseY, int backgroundTop, int backgroundBottom, int borderTop, int borderBottom, TooltipPositioner positioner) {
         if (!tooltips.isEmpty()) {
-            RenderTooltipEvent.Pre event = ForgeHooksClient.onRenderTooltipPre(tooltipStack, guiGraphicsWrapper(), (int) mouseX, (int) mouseY, guiWidth(), guiHeight(), tooltips, font(), positioner);
+            //1.19.2: Forge 43 hook signature (PoseStack, forced font = null, fallback font), no positioner argument.
+            RenderTooltipEvent.Pre event = ForgeHooksClient.onRenderTooltipPre(tooltipStack, pose, (int) mouseX, (int) mouseY, guiWidth(), guiHeight(), tooltips, null, font());
             if (event.isCanceled()) return;
 
 
@@ -1360,11 +1362,11 @@ public class GuiRender {
                 height += line.getHeight();
             }
 
-            Vector2ic position = positioner.positionTooltip(guiWidth(), guiHeight(), event.getX(), event.getY(), width, height);
-            int xPos = position.x();
-            int yPos = Math.max(position.y(), 3); //Default positioner allows negative y-pos for some reason...
+            int[] position = positioner.positionTooltip(guiWidth(), guiHeight(), event.getX(), event.getY(), width, height);
+            int xPos = position[0];
+            int yPos = Math.max(position[1], 3); //Default positioner allows negative y-pos for some reason...
 
-            RenderTooltipEvent.Color colorEvent = new RenderTooltipEvent.Color(tooltipStack, guiGraphicsWrapper(), (int) mouseX, (int) mouseY, font(), backgroundTop, borderTop, borderBottom, tooltips);
+            RenderTooltipEvent.Color colorEvent = new RenderTooltipEvent.Color(tooltipStack, pose, (int) mouseX, (int) mouseY, font(), backgroundTop, borderTop, borderBottom, tooltips);
             colorEvent.setBackgroundEnd(backgroundBottom);
             MinecraftForge.EVENT_BUS.post(colorEvent);
 
@@ -1376,14 +1378,26 @@ public class GuiRender {
                 component.renderText(event.getFont(), xPos, linePos, pose.last().pose(), buffers);
                 linePos += component.getHeight() + (i == 0 ? 2 : 0);
             }
+            //1.19.2: nothing flushes the shared buffer source after the screen has rendered (1.20 does), so flush the text here.
+            flush();
 
             linePos = yPos;
 
+            //1.19.2: tooltip images (e.g. bundles) render through the 1.19.2 PoseStack + ItemRenderer API. ItemRenderer
+            //draws through RenderSystem's model-view stack, so the current pose is applied there and the images get
+            //an identity PoseStack (the 1.20 version passed the gui graphics wrapping this pose).
+            PoseStack modelView = RenderSystem.getModelViewStack();
+            modelView.pushPose();
+            modelView.mulPoseMatrix(pose.last().pose());
+            RenderSystem.applyModelViewMatrix();
+            PoseStack imagePose = new PoseStack();
             for (int i = 0; i < tooltips.size(); ++i) {
                 ClientTooltipComponent component = tooltips.get(i);
-                component.renderImage(event.getFont(), xPos, linePos, renderWrapper);
+                component.renderImage(event.getFont(), xPos, linePos, imagePose, mc().getItemRenderer(), 0);
                 linePos += component.getHeight() + (i == 0 ? 2 : 0);
             }
+            modelView.popPose();
+            RenderSystem.applyModelViewMatrix();
         }
     }
 
@@ -1480,7 +1494,7 @@ public class GuiRender {
             pose.pushPose();
             pose.translate(x + (size / 2D), y + (size / 2D), size);
             try {
-                pose.mulPoseMatrix((new Matrix4f()).scaling(1.0F, -1.0F, 1.0F));
+                pose.mulPoseMatrix(Matrix4f.createScaleMatrix(1.0F, -1.0F, 1.0F));
                 pose.scale((float) size, (float) size, (float) size);
                 boolean flag = !bakedmodel.usesBlockLight();
                 if (flag) Lighting.setupForFlatItems();
@@ -1572,7 +1586,17 @@ public class GuiRender {
 
             pose.popPose();
             if (size == 16) {
-                net.minecraftforge.client.ItemDecoratorHandler.of(stack).render(guiGraphicsWrapper(), font(), stack, (int) x, (int) y);
+                //1.19.2: Forge 43 decorators take (Font, ItemStack, x, y, blitOffset) and draw through RenderSystem's
+                //model-view stack, so the current pose is applied there. blitOffset -168 puts the vanilla 1.19.2
+                //decoration layer (blitOffset + 200) at z 32, the same z clearance mgui uses for its own decorations.
+                flush();
+                PoseStack modelView = RenderSystem.getModelViewStack();
+                modelView.pushPose();
+                modelView.mulPoseMatrix(pose.last().pose());
+                RenderSystem.applyModelViewMatrix();
+                net.minecraftforge.client.ItemDecoratorHandler.of(stack).render(font(), stack, (int) x, (int) y, -168F);
+                modelView.popPose();
+                RenderSystem.applyModelViewMatrix();
             }
         }
     }
@@ -1705,34 +1729,26 @@ public class GuiRender {
     }
 
     /**
-     * This exists to allow thing like the Tooltip events to still function correctly, hopefully without exploding...
+     * 1.19.2 replacement for vanilla's 1.19.3+ {@code ClientTooltipPositioner} (WP-10).
+     * Returns the top left corner of the tooltip as {@code {x, y}}.
      */
-    public static class RenderWrapper extends GuiGraphics {
-        private final GuiRender wrapped;
-
-        private RenderWrapper(GuiRender wrapped) {
-            super(wrapped.mc(), wrapped.pose(), wrapped.buffers());
-            this.wrapped = wrapped;
-        }
-
-        @Override
-        public void drawManaged(Runnable runnable) {
-            wrapped.batchDraw(runnable);
-        }
-
-        @Override
-        public void flush() {
-            wrapped.flush();
-        }
-
-        @Override
-        public void flushIfManaged() {
-            wrapped.flushIfBatched();
-        }
-
-        @Override
-        public void flushIfUnmanaged() {
-            wrapped.flushIfUnBatched();
-        }
+    @FunctionalInterface
+    public interface TooltipPositioner {
+        int[] positionTooltip(int screenWidth, int screenHeight, int mouseX, int mouseY, int tooltipWidth, int tooltipHeight);
     }
+
+    /**
+     * Default tooltip positioning, identical to 1.19.2 vanilla {@code Screen#renderTooltipInternal}.
+     */
+    public static final TooltipPositioner DEFAULT_TOOLTIP_POSITIONER = (screenWidth, screenHeight, mouseX, mouseY, tooltipWidth, tooltipHeight) -> {
+        int x = mouseX + 12;
+        int y = mouseY - 12;
+        if (x + tooltipWidth > screenWidth) {
+            x -= 28 + tooltipWidth;
+        }
+        if (y + tooltipHeight + 6 > screenHeight) {
+            y = screenHeight - tooltipHeight - 6;
+        }
+        return new int[] { x, y };
+    };
 }

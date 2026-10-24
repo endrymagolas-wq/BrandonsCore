@@ -6,7 +6,7 @@ import codechicken.lib.gui.modular.lib.GuiRender;
 import codechicken.lib.gui.modular.lib.geometry.GuiParent;
 import codechicken.lib.gui.modular.sprite.CCGuiTextures;
 import codechicken.lib.gui.modular.sprite.Material;
-import codechicken.lib.util.FormatUtil;
+import codechicken.lib.gui.modular.lib.FormatUtil;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;

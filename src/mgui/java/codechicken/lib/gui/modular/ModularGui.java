@@ -9,7 +9,6 @@ import codechicken.lib.gui.modular.lib.geometry.GuiParent;
 import net.covers1624.quack.collection.FastStream;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.network.chat.Component;
@@ -203,10 +202,10 @@ public class ModularGui implements GuiParent<ModularGui> {
     /**
      * Create a new {@link GuiRender} for the current render call.
      *
-     * @param buffers BufferSource can be retried from {@link GuiGraphics}
+     * @param buffers BufferSource can be retried from {@code Minecraft.getInstance().renderBuffers().bufferSource()}
      * @return A new {@link GuiRender} for the current render call.
      */
-    @Deprecated //If you have the GuiGraphics, use GuiRender#convert to ensure the underlying PoseStack is carried over. That will ensure things like the JEI overlay will be rendered at a
+    @Deprecated //If you have the PoseStack, use GuiRender#convert to ensure the underlying PoseStack is carried over. That will ensure things like the JEI overlay will be rendered at a
     public GuiRender createRender(MultiBufferSource.BufferSource buffers) {
         return new GuiRender(mc, buffers);
     }
@@ -215,7 +214,7 @@ public class ModularGui implements GuiParent<ModularGui> {
      * Primary render method for ModularGui. The screen implementing ModularGui must call this in its render method.
      * Followed by the {@link #renderOverlay(GuiRender, float)} method to handle overlay rendering.
      *
-     * @param render GuiRender instance converted from Minecraft's {@link GuiGraphics} via {@link GuiRender#convert(GuiGraphics)}
+     * @param render GuiRender instance converted from the screen's {@link com.mojang.blaze3d.vertex.PoseStack} via {@link GuiRender#convert(com.mojang.blaze3d.vertex.PoseStack)}
      */
     public void render(GuiRender render, float partialTicks) {
         root.clearGeometryCache();

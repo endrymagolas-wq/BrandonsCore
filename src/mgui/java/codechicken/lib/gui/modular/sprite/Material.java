@@ -5,11 +5,9 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.metadata.animation.AnimationMetadataSection;
-import net.minecraft.client.resources.metadata.animation.FrameSize;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 
@@ -99,7 +97,7 @@ public class Material {
     @Nullable
     public static Material fromSprite(@Nullable TextureAtlasSprite sprite) {
         if (sprite == null) return null;
-        return new Material(sprite.atlasLocation(), sprite.contents().name(), e -> Minecraft.getInstance().getTextureAtlas(sprite.atlasLocation()).apply(e));
+        return new Material(sprite.atlas().location(), sprite.getName(), e -> Minecraft.getInstance().getTextureAtlas(sprite.atlas().location()).apply(e));
     }
 
     public static Material fromRawTexture(ResourceLocation texture) {
@@ -107,8 +105,10 @@ public class Material {
     }
 
     private static class FullSprite extends TextureAtlasSprite {
+        //1.19.2: TextureAtlasSprite takes the owning TextureAtlas (for atlasLocation) and a sprite Info instead of
+        //the 1.20 sprite contents object; same 1x1 sprite on a 1x1 atlas at 0,0 (u0 = v0 = 0, u1 = v1 = 1).
         private FullSprite(ResourceLocation location) {
-            super(location, new SpriteContents(location, new FrameSize(1, 1), new NativeImage(1, 1, false), AnimationMetadataSection.EMPTY), 1, 1, 0, 0);
+            super(new TextureAtlas(location), new TextureAtlasSprite.Info(location, 1, 1, AnimationMetadataSection.EMPTY), 0, 1, 1, 0, 0, new NativeImage(1, 1, false));
         }
 
         @Override

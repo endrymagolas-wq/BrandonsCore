@@ -1,7 +1,7 @@
 package codechicken.lib.gui.modular.sprite;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.SpriteLoader;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureManager;
@@ -20,11 +20,20 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
+ * 1.19.2 backport notes (BrandonsCore 1.19.2 port, WP-10):
+ * 1.19.2 has no SpriteLoader / atlas json "sprite sources", so the 1.20 {@code atlases/<atlasInfoLocation>.json}
+ * (a single "directory" source with source = atlasInfoLocation and prefix = atlasInfoLocation + "/", which is what
+ * CCL, BrandonsCore and Draconic Evolution all use) is reproduced in code: every {@code textures/<atlasInfoLocation>/**.png}
+ * of this mod's namespace becomes the sprite {@code modid:<atlasInfoLocation>/<path without .png>}, stitched with
+ * the 1.19.2 {@link TextureAtlas#prepareToStitch} / {@link TextureAtlas#reload} (as 1.19.2 TextureAtlasHolder does).
+ * The json file itself is not read. The 1.19.2 TextureAtlas constructor queries GL, so the atlas is created lazily
+ * on the render thread.
+ * <p>
  * Created by brandon3055 on 20/08/2023
  */
 public class ModAtlasHolder implements PreparableReloadListener, AutoCloseable {
 
-    private final TextureAtlas textureAtlas;
+    private TextureAtlas textureAtlas;
     private final ResourceLocation atlasLocation;
     private final ResourceLocation atlasInfoLocation;
     private final String modid;
@@ -42,17 +51,31 @@ public class ModAtlasHolder implements PreparableReloadListener, AutoCloseable {
     public ModAtlasHolder(String modid, String atlasLocation, String atlasInfoLocation) {
         this.atlasInfoLocation = new ResourceLocation(modid, atlasInfoLocation);
         this.atlasLocation = new ResourceLocation(modid, atlasLocation);
-        this.textureAtlas = new TextureAtlas(this.atlasLocation);
         this.modid = modid;
         // TODO remove in 1.20.4
-        TextureManager textureManager = Minecraft.getInstance().getTextureManager();
-        if (textureManager != null) {
-            textureManager.register(this.textureAtlas.location(), this.textureAtlas);
+        // 1.19.2: create (and register) the atlas right away only when it is safe to touch GL, otherwise on first use.
+        if (RenderSystem.isOnRenderThreadOrInit() && Minecraft.getInstance() != null && Minecraft.getInstance().getTextureManager() != null) {
+            atlas();
         }
     }
 
     public void init() {
-        Minecraft.getInstance().getTextureManager().register(this.textureAtlas.location(), this.textureAtlas);
+        Minecraft.getInstance().getTextureManager().register(atlas().location(), atlas());
+    }
+
+    /**
+     * 1.19.2: lazily creates the texture atlas (the 1.19.2 TextureAtlas constructor queries the max texture size from GL)
+     * and registers it with the texture manager as soon as one exists.
+     */
+    private TextureAtlas atlas() {
+        if (this.textureAtlas == null) {
+            this.textureAtlas = new TextureAtlas(this.atlasLocation);
+            TextureManager textureManager = Minecraft.getInstance().getTextureManager();
+            if (textureManager != null) {
+                textureManager.register(this.textureAtlas.location(), this.textureAtlas);
+            }
+        }
+        return this.textureAtlas;
     }
 
     public ResourceLocation atlasLocation() {
@@ -60,30 +83,53 @@ public class ModAtlasHolder implements PreparableReloadListener, AutoCloseable {
     }
 
     public TextureAtlasSprite getSprite(ResourceLocation resourceLocation) {
-        return this.textureAtlas.getSprite(resourceLocation);
+        return atlas().getSprite(resourceLocation);
     }
 
     @Override
     public final @NotNull CompletableFuture<Void> reload(PreparationBarrier prepBarrier, ResourceManager resourceManager, ProfilerFiller profiler, ProfilerFiller profiler2, Executor executor, Executor executor2) {
         Objects.requireNonNull(prepBarrier);
-        SpriteLoader spriteLoader = SpriteLoader.create(this.textureAtlas);
-        return spriteLoader.loadAndStitch(new ModResourceManager(resourceManager, modid), this.atlasInfoLocation, 0, executor)
-                .thenCompose(SpriteLoader.Preparations::waitForUpload)
+        TextureAtlas atlas = atlas(); //The reload instance calls this on the main (render) thread.
+        ResourceManager modResources = new ModResourceManager(resourceManager, modid);
+        return CompletableFuture.supplyAsync(() -> this.prepare(atlas, modResources, profiler), executor)
                 .thenCompose(prepBarrier::wait)
-                .thenAcceptAsync((preparations) -> this.apply(preparations, profiler2), executor2);
+                .thenAcceptAsync((preparations) -> this.apply(atlas, preparations, profiler2), executor2);
     }
 
-    private void apply(SpriteLoader.Preparations preparations, ProfilerFiller profilerFiller) {
+    /**
+     * 1.19.2 equivalent of the 1.20 "directory" sprite source with source = atlasInfoLocation and prefix = atlasInfoLocation + "/":
+     * {@code modid:textures/<source>/a/b.png} becomes the sprite {@code modid:<source>/a/b}.
+     * (The 1.19.2 atlas loads {@code textures/<sprite>.png}, which is exactly the file that was found.)
+     */
+    private Stream<ResourceLocation> listSprites(ResourceManager modResources) {
+        String source = "textures/" + atlasInfoLocation.getPath();
+        return modResources.listResources(source, e -> e.getPath().endsWith(".png")).keySet().stream()
+                .map(e -> new ResourceLocation(e.getNamespace(), e.getPath().substring("textures/".length(), e.getPath().length() - ".png".length())))
+                .sorted();
+    }
+
+    private TextureAtlas.Preparations prepare(TextureAtlas atlas, ResourceManager modResources, ProfilerFiller profilerFiller) {
+        profilerFiller.startTick();
+        profilerFiller.push("stitching");
+        TextureAtlas.Preparations preparations = atlas.prepareToStitch(modResources, listSprites(modResources), profilerFiller, 0);
+        profilerFiller.pop();
+        profilerFiller.endTick();
+        return preparations;
+    }
+
+    private void apply(TextureAtlas atlas, TextureAtlas.Preparations preparations, ProfilerFiller profilerFiller) {
         profilerFiller.startTick();
         profilerFiller.push("upload");
-        this.textureAtlas.upload(preparations);
+        atlas.reload(preparations);
         profilerFiller.pop();
         profilerFiller.endTick();
     }
 
     @Override
     public void close() {
-        this.textureAtlas.clearTextureData();
+        if (this.textureAtlas != null) {
+            this.textureAtlas.clearTextureData();
+        }
     }
 
     public static class ModResourceManager implements ResourceManager {

@@ -68,7 +68,7 @@ public class GuiColourPicker extends GuiManipulable {
             slider = makeSlider(background, 0xFFFFFFFF, picker.sliderStateAlpha())
                     .constrain(TOP, relative(slider.get(BOTTOM), 1));
         } else {
-            colourState.set(colourState.getColour().aF(0));
+            colourState.set(aF(colourState.getColour(), 0));
         }
 
         ColourPreview preview = new ColourPreview(background, () -> hasAlpha ? colourState.get() : (colourState.get() | 0xFF000000))
@@ -229,19 +229,19 @@ public class GuiColourPicker extends GuiManipulable {
     }
 
     public SliderState sliderStateAlpha() {
-        return SliderState.forSlider(() -> (double) colourState.getColour().aF(), e -> colourState.set(colourState.getColour().aF(e.floatValue())), () -> -1D / (Screen.hasShiftDown() ? 16 : 64));
+        return SliderState.forSlider(() -> (double) aF(colourState.getColour()), e -> colourState.set(aF(colourState.getColour(), e.floatValue())), () -> -1D / (Screen.hasShiftDown() ? 16 : 64));
     }
 
     public SliderState sliderStateRed() {
-        return SliderState.forSlider(() -> (double) colourState.getColour().rF(), e -> colourState.set(colourState.getColour().rF(e.floatValue())), () -> -1D / (Screen.hasShiftDown() ? 16 : 64));
+        return SliderState.forSlider(() -> (double) rF(colourState.getColour()), e -> colourState.set(rF(colourState.getColour(), e.floatValue())), () -> -1D / (Screen.hasShiftDown() ? 16 : 64));
     }
 
     public SliderState sliderStateGreen() {
-        return SliderState.forSlider(() -> (double) colourState.getColour().gF(), e -> colourState.set(colourState.getColour().gF(e.floatValue())), () -> -1D / (Screen.hasShiftDown() ? 16 : 64));
+        return SliderState.forSlider(() -> (double) gF(colourState.getColour()), e -> colourState.set(gF(colourState.getColour(), e.floatValue())), () -> -1D / (Screen.hasShiftDown() ? 16 : 64));
     }
 
     public SliderState sliderStateBlue() {
-        return SliderState.forSlider(() -> (double) colourState.getColour().bF(), e -> colourState.set(colourState.getColour().bF(e.floatValue())), () -> -1D / (Screen.hasShiftDown() ? 16 : 64));
+        return SliderState.forSlider(() -> (double) bF(colourState.getColour()), e -> colourState.set(bF(colourState.getColour(), e.floatValue())), () -> -1D / (Screen.hasShiftDown() ? 16 : 64));
     }
 
     public TextState getTextState() {
@@ -257,5 +257,42 @@ public class GuiColourPicker extends GuiManipulable {
      */
     public GuiButton getCancelButton() {
         return cancelButton;
+    }
+
+    //=== 1.19.2 (WP-10) ===//
+    // CCL 4.3.2's Colour has no float accessors (rF()/gF()/bF()/aF() and their setters were added in CCL 1.20) and
+    // codechicken.lib.colour is a CCL package, so these local helpers reproduce the CCL 1.20 implementations exactly.
+
+    private static float rF(Colour c) { return (c.r & 0xFF) / 255F; }
+
+    private static float gF(Colour c) { return (c.g & 0xFF) / 255F; }
+
+    private static float bF(Colour c) { return (c.b & 0xFF) / 255F; }
+
+    private static float aF(Colour c) { return (c.a & 0xFF) / 255F; }
+
+    private static Colour rF(Colour c, float r) {
+        c.r = (byte) (255F * r);
+        return c;
+    }
+
+    private static Colour gF(Colour c, float g) {
+        c.g = (byte) (255F * g);
+        return c;
+    }
+
+    private static Colour bF(Colour c, float b) {
+        c.b = (byte) (255F * b);
+        return c;
+    }
+
+    private static Colour aF(Colour c, float a) {
+        c.a = (byte) (255F * a);
+        return c;
+    }
+
+    private static Colour aF(Colour c, int a) {
+        c.a = (byte) a;
+        return c;
     }
 }

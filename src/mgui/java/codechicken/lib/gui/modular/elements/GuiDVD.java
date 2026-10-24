@@ -7,7 +7,7 @@ import codechicken.lib.gui.modular.lib.geometry.Constraint;
 import codechicken.lib.gui.modular.lib.geometry.GuiParent;
 import codechicken.lib.gui.modular.lib.geometry.Rectangle;
 import org.jetbrains.annotations.NotNull;
-import org.joml.Vector2d;
+import codechicken.lib.vec.Vector3;
 
 import java.util.Random;
 import java.util.function.Consumer;
@@ -24,7 +24,7 @@ public class GuiDVD extends GuiElement<GuiDVD> implements ContentElement<GuiElem
     private final GuiElement<?> movingElement;
     private double xOffset = 0;
     private double yOffset = 0;
-    private Vector2d velocity = null;
+    private Vector3 velocity = null; //1.19.2: JOML (Vector2d) is not available, CCL Vector3 with z = 0 is used instead (same 2D maths)
     private int bounce = 0;
     private Consumer<Integer> onBounce = bounce -> {
     };
@@ -45,7 +45,7 @@ public class GuiDVD extends GuiElement<GuiDVD> implements ContentElement<GuiElem
 
     public void start() {
         if (velocity == null) {
-            velocity = new Vector2d(randy.nextBoolean() ? 1 : -1, randy.nextBoolean() ? 1 : -1);
+            velocity = new Vector3(randy.nextBoolean() ? 1 : -1, randy.nextBoolean() ? 1 : -1, 0);
             velocity.normalize();
         } else {
             velocity = null;

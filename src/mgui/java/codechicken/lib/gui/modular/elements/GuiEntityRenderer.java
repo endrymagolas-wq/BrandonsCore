@@ -10,7 +10,6 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Vector3f;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.RemotePlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -268,12 +267,12 @@ public class GuiEntityRenderer extends GuiElement<GuiEntityRenderer> implements 
     public static void renderEntityInInventory(GuiRender render, double pX, double pY, double pScale, boolean flat, Quaternion quat, @Nullable Quaternion pCameraOrientation, Entity pEntity) {
         render.pose().pushPose();
         render.pose().translate(pX, pY, 50.0D);
-        render.pose().mulPoseMatrix((new Matrix4f()).scaling((float)pScale, (float)pScale, flat ? -1 : (float)(-pScale)));
+        render.pose().mulPoseMatrix(Matrix4f.createScaleMatrix((float)pScale, (float)pScale, flat ? -1 : (float)(-pScale)));
         render.pose().mulPose(quat);
         Lighting.setupForEntityInInventory();
         EntityRenderDispatcher entityrenderdispatcher = Minecraft.getInstance().getEntityRenderDispatcher();
         if (pCameraOrientation != null) {
-            pCameraOrientation.conjugate();
+            pCameraOrientation.conj();
             entityrenderdispatcher.overrideCameraOrientation(pCameraOrientation);
         }
 

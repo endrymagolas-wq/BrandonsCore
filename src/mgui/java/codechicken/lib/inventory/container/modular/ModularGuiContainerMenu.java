@@ -7,9 +7,9 @@ import codechicken.lib.gui.modular.lib.container.ContainerScreenAccess;
 import codechicken.lib.gui.modular.lib.container.DataSync;
 import codechicken.lib.gui.modular.lib.container.SlotGroup;
 import codechicken.lib.gui.modular.lib.geometry.GuiParent;
-import codechicken.lib.internal.network.CCLNetwork;
 import codechicken.lib.packet.PacketCustom;
 import codechicken.lib.vec.Vector3;
+import com.brandon3055.brandonscore.mgui.MGuiBootstrap;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
@@ -30,7 +30,8 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-import static codechicken.lib.internal.network.CCLNetwork.*;
+import static com.brandon3055.brandonscore.mgui.MGuiBootstrap.C_GUI_SYNC;
+import static com.brandon3055.brandonscore.mgui.MGuiBootstrap.S_GUI_SYNC;
 
 /**
  * The base abstract ContainerMenu for all modular gui containers.
@@ -104,7 +105,8 @@ public abstract class ModularGuiContainerMenu extends AbstractContainerMenu {
      */
     public void sendPacketToClient(int packetId, Consumer<MCDataOutput> packetWriter) {
         if (inventory.player instanceof ServerPlayer serverPlayer) {
-            PacketCustom packet = new PacketCustom(CCLNetwork.NET_CHANNEL, C_GUI_SYNC);
+            //1.19.2: stock CCL 4.3.2 has no GUI_SYNC packet, mgui uses BrandonsCore's own channel (MGuiBootstrap).
+            PacketCustom packet = new PacketCustom(MGuiBootstrap.NET_CHANNEL, C_GUI_SYNC);
             packet.writeByte(containerId);
             packet.writeByte((byte) packetId);
             packetWriter.accept(packet);
@@ -119,7 +121,7 @@ public abstract class ModularGuiContainerMenu extends AbstractContainerMenu {
      * @param packetWriter Use this callback to write your data to the packet.
      */
     public void sendPacketToServer(int packetId, Consumer<MCDataOutput> packetWriter) {
-        PacketCustom packet = new PacketCustom(CCLNetwork.NET_CHANNEL, S_GUI_SYNC);
+        PacketCustom packet = new PacketCustom(MGuiBootstrap.NET_CHANNEL, S_GUI_SYNC); //1.19.2: see sendPacketToClient
         packet.writeByte(containerId);
         packet.writeByte((byte) packetId);
         packetWriter.accept(packet);

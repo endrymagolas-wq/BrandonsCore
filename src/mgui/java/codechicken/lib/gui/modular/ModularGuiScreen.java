@@ -3,7 +3,7 @@ package codechicken.lib.gui.modular;
 import codechicken.lib.gui.modular.lib.GuiProvider;
 import codechicken.lib.gui.modular.lib.GuiRender;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
@@ -63,13 +63,14 @@ public class ModularGuiScreen extends Screen {
     }
 
     @Override
-    public void render(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+    public void render(@NotNull PoseStack poseStack, int mouseX, int mouseY, float partialTicks) {
         if (modularGui.renderBackground()) {
-            renderBackground(graphics);
+            renderBackground(poseStack);
         }
-        GuiRender render = GuiRender.convert(graphics);
+        GuiRender render = GuiRender.convert(poseStack);
         modularGui.render(render, partialTicks);
         modularGui.renderOverlay(render, partialTicks);
+        render.flush(); //1.19.2: vanilla does not flush the shared buffer source after the screen renders (1.20 does).
     }
 
     @Override

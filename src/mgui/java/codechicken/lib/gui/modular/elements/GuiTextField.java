@@ -5,7 +5,9 @@ import codechicken.lib.gui.modular.lib.GuiRender;
 import codechicken.lib.gui.modular.lib.TextState;
 import codechicken.lib.gui.modular.lib.geometry.Constraint;
 import codechicken.lib.gui.modular.lib.geometry.GuiParent;
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.SharedConstants;
@@ -38,7 +40,12 @@ import static codechicken.lib.gui.modular.lib.geometry.GeoParam.*;
 public class GuiTextField extends GuiElement<GuiTextField> implements BackgroundRender {
     private static final RenderType HIGHLIGHT_TYPE = RenderType.create("text_field_highlight", DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS, 256, RenderType.CompositeState.builder()
             .setShaderState(new RenderStateShard.ShaderStateShard(GameRenderer::getPositionColorShader))
-            .setColorLogicState(RenderStateShard.OR_REVERSE_COLOR_LOGIC)
+            //1.19.2: there is no colour-logic shard (1.20 OR_REVERSE_COLOR_LOGIC). This shard applies the same GL state
+            //(enable colour logic op + OR_REVERSE, disable afterwards) through the otherwise unused texturing slot.
+            .setTexturingState(new RenderStateShard.TexturingStateShard("ccl_or_reverse_color_logic", () -> {
+                RenderSystem.enableColorLogicOp();
+                RenderSystem.logicOp(GlStateManager.LogicOp.OR_REVERSE);
+            }, RenderSystem::disableColorLogicOp))
             .createCompositeState(false));
 
     private int tick;
