@@ -123,7 +123,7 @@ public class BlockBCore extends Block implements IBCoreBlock {
     }
 
     @Override
-    public boolean shouldCheckWeakPower(BlockState state, SignalGetter world, BlockPos pos, Direction side) {
+    public boolean shouldCheckWeakPower(BlockState state, LevelReader world, BlockPos pos, Direction side) {
         if (this instanceof EntityBlockBCore) {
             BlockEntity tile = world.getBlockEntity(pos);
             return tile instanceof IChangeListener;

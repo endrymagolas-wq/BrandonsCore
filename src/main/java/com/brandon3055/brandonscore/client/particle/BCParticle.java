@@ -89,7 +89,7 @@ public class BCParticle extends Particle {
         return this;
     }
 
-    @Override
+    // PORT(1.19.2): Particle#getPos() does not exist in 1.19.2, so this is not an override here.
     public Vec3 getPos() {
         return new Vec3(x, y, z);
     }

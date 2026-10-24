@@ -12,6 +12,7 @@ import com.brandon3055.brandonscore.init.ClientInit;
 import com.brandon3055.brandonscore.integration.ModHelperBC;
 import com.brandon3055.brandonscore.inventory.BlockToStackHelper;
 import com.brandon3055.brandonscore.lib.IEquipmentManager;
+import com.brandon3055.brandonscore.mgui.MGuiBootstrap;
 import com.brandon3055.brandonscore.multiblock.MultiBlockManager;
 import com.brandon3055.brandonscore.network.BCoreNetwork;
 import com.brandon3055.brandonscore.worldentity.WorldEntityHandler;
@@ -60,6 +61,7 @@ public class BrandonsCore {
 
         CapabilityOP.init();
         BCoreNetwork.init();
+        MGuiBootstrap.initCommon(); // Embedded CCL Modular GUI backport: network channel brandonscore:mgui (both sides)
         BCConfig.load();
         ProcessHandler.init();
         MultiBlockManager.init();
