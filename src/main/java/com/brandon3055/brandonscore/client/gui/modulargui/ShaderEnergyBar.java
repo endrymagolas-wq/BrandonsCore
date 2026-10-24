@@ -205,8 +205,8 @@ public class ShaderEnergyBar extends GuiEnergyBar {
     public void sliceSprite(VertexConsumer buffer, double xPos, double yPos, double xSize, double ySize, TextureAtlasSprite sprite) {
         float texU = sprite.getU0();
         float texV = sprite.getV0();
-        int texWidth = sprite.contents().width();
-        int texHeight = sprite.contents().height();
+        int texWidth = sprite.getWidth();
+        int texHeight = sprite.getHeight();
         float uScale = (sprite.getU1() - texU) / texWidth;
         float vScale = (sprite.getV1() - texV) / texHeight;
         for (double i = 0; i < ySize; i += Math.min(texHeight - 2, ySize - i)) {
