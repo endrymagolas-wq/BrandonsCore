@@ -51,7 +51,7 @@ public class HudManager {
 
     public static void onDrawOverlayPre(RenderGuiEvent.Pre event) {
         if (event.isCanceled()) return;
-        GuiRender render = GuiRender.convert(event.getGuiGraphics());
+        GuiRender render = GuiRender.convert(event.getPoseStack());
         boolean configuring = Minecraft.getInstance().screen instanceof HudConfigGui.Screen;
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F); //Fixes broken hud when underwater
         for (AbstractHudElement element : hudElements.values()) {
@@ -65,7 +65,7 @@ public class HudManager {
 
     public static void onDrawOverlayPost(RenderGuiEvent.Post event) {
         if (event.isCanceled()) return;
-        GuiRender render = GuiRender.convert(event.getGuiGraphics());
+        GuiRender render = GuiRender.convert(event.getPoseStack());
         boolean configuring = Minecraft.getInstance().screen instanceof HudConfigGui.Screen;
         for (AbstractHudElement element : hudElements.values()) {
             if (element.shouldRender(false)) {
