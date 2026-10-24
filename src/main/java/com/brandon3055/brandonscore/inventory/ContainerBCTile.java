@@ -134,7 +134,7 @@ public abstract class ContainerBCTile<T extends TileBCore> extends ModularGuiCon
     }
 
     protected static <T extends BlockEntity> T getClientTile(Inventory playerInv, FriendlyByteBuf extraData) {
-        return (T) playerInv.player.level().getBlockEntity(extraData.readBlockPos());
+        return (T) playerInv.player.level.getBlockEntity(extraData.readBlockPos());
     }
 
     public PacketCustom createServerBoundPacket(int packetType) {

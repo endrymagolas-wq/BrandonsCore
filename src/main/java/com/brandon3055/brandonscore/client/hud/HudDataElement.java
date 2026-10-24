@@ -54,15 +54,15 @@ public class HudDataElement extends AbstractHudElement {
             HitResult traceResult = Minecraft.getInstance().player.pick(5, 0, false);
             if (traceResult instanceof BlockHitResult && traceResult.getType() != HitResult.Type.MISS) {
                 BlockPos pos = ((BlockHitResult) traceResult).getBlockPos();
-                BlockState state = player.level().getBlockState(pos);
-                BlockEntity tile = player.level().getBlockEntity(pos);
+                BlockState state = player.level.getBlockState(pos);
+                BlockEntity tile = player.level.getBlockEntity(pos);
                 if (state.getBlock() instanceof IHudBlock) {
                     activeHud = (IHudBlock) state.getBlock();
                 } else if (tile instanceof IHudBlock) {
                     activeHud = (IHudBlock) tile;
                 }
-                if (activeHud != null && ((IHudBlock) activeHud).shouldDisplayHudText(player.level(), pos, player)) {
-                    ((IHudBlock) activeHud).generateHudText(player.level(), pos, player, displayList);
+                if (activeHud != null && ((IHudBlock) activeHud).shouldDisplayHudText(player.level, pos, player)) {
+                    ((IHudBlock) activeHud).generateHudText(player.level, pos, player, displayList);
                     if (displayList.isEmpty()) {
                         activeHud = null;
                     }
