@@ -61,6 +61,7 @@ public class HudManager {
                 render.pose().popPose();
             }
         }
+        render.flush(); //PORT(1.19.2): nothing flushes the gui buffer source after the overlay (1.20 GuiGraphics did)
     }
 
     public static void onDrawOverlayPost(RenderGuiEvent.Post event) {
@@ -74,6 +75,7 @@ public class HudManager {
                 render.pose().popPose();
             }
         }
+        render.flush(); //PORT(1.19.2): see onDrawOverlayPre
     }
 
     public static void onClientTick(TickEvent.ClientTickEvent event) {
