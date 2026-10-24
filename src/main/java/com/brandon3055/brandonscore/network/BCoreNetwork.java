@@ -162,7 +162,7 @@ public class BCoreNetwork {
         if (movement) {
             packet.writeFloat(entity.getXRot());
             packet.writeFloat(entity.getYRot());
-            packet.writeBoolean(entity.onGround());
+            packet.writeBoolean(entity.isOnGround());
         }
         return packet.toPacket(NetworkDirection.PLAY_TO_CLIENT);
     }

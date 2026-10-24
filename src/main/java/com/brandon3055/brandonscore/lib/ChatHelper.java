@@ -48,7 +48,7 @@ public class ChatHelper {
      * @param index   message index.
      */
     public static void sendIndexed(Player player, Component message, UUID messageId) {
-        if (player.level().isClientSide()){
+        if (player.level.isClientSide()){
             BrandonsCore.proxy.sendIndexedMessage(player, message, Utils.uuidToSig(messageId));
         } else {
             BCoreNetwork.sendIndexedMessage((ServerPlayer) player, message, Utils.uuidToSig(messageId));

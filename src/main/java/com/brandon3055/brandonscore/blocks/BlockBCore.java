@@ -245,7 +245,7 @@ public class BlockBCore extends Block implements IBCoreBlock {
 
     @Override
     public void onBlockExploded(BlockState state, Level world, BlockPos pos, Explosion explosion) {
-        if ((explosion.getIndirectSourceEntity() instanceof Mob && isMobResistant) || isExplosionResistant) {
+        if ((explosion.getSourceMob() instanceof Mob && isMobResistant) || isExplosionResistant) {
             return;
         }
         super.onBlockExploded(state, world, pos, explosion);
@@ -253,7 +253,7 @@ public class BlockBCore extends Block implements IBCoreBlock {
 
     @Override
     public boolean dropFromExplosion(Explosion explosion) {
-        if ((explosion.getIndirectSourceEntity() instanceof Mob && isMobResistant) || isExplosionResistant) {
+        if ((explosion.getSourceMob() instanceof Mob && isMobResistant) || isExplosionResistant) {
             return false;
         }
         return super.dropFromExplosion(explosion);
