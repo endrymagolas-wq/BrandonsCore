@@ -1,3 +1,4 @@
+// Modified for Minecraft 1.19.2 / Forge 43 by the BrandonsCore 1.19.2 port (2026-10-24, see git history); based on CodeChickenLib 1.20.1 @3b43c7f, LGPL-2.1.
 package codechicken.lib.gui.modular.elements;
 
 import codechicken.lib.colour.Colour;
