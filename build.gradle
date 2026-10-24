@@ -1,42 +1,96 @@
-import groovy.json.JsonOutput
+// Unofficial 1.19.2 port (WP-11a): ForgeGradle 5 build taken from BrandonsCore origin/1.19 and adapted
+// (publication fix, embedded mgui source tree, dev source set, datagen excluded, JEI 11.6 API).
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url = "https://maven.minecraftforge.net/" }
+        maven { url = "https://repo.spongepowered.org/maven" }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:5.1.+'
+        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
+    }
+}
 
 plugins {
     id 'java'
     id 'maven-publish'
-    id 'signing'
     id 'com.github.johnrengelman.shadow' version '7.1.2'
-    id 'net.neoforged.gradle' version '[6.0.18,6.2)'
-    id 'org.spongepowered.mixin' version '0.7.+'
+    id "net.covers1624.signing" version '1.1.4'
 }
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
-    withSourcesJar()
-}
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: "org.spongepowered.mixin"
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 group = "com.brandon3055.brandonscore"
 archivesBaseName = "BrandonsCore"
 
-sourceSets.main.resources.srcDirs += "src/main/generated"
+sourceSets {
+    main {
+        java {
+            // Backport of CodeChickenLib's Modular GUI (LGPL-2.1), embedded as a separate source tree.
+            srcDirs += 'src/mgui/java'
+            // Datagen is not ported (plan §3); nothing outside datagen/** references it.
+            exclude 'com/brandon3055/brandonscore/datagen/**'
+        }
+        resources {
+            srcDirs += 'src/main/generated'
+            srcDirs += 'src/mgui/resources'
+        }
+    }
+    // Dev-only kitchen-sink code (WP-10c). Wired only into the run configs, never into the jar.
+    dev {
+        java.srcDirs = ['src/dev/java']
+        resources.srcDirs = ['src/dev/resources']
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+}
 
-mod_version = "${mod_version}." + (System.getenv("BUILD_NUMBER") ?: "9999")
-version = "${mc_version}-${mod_version}"
-println "Starting build of ${archivesBaseName}, Version: ${mod_version}"
-println "Using Neoforge: ${neo_version}, for Minecraft: ${mc_version}"
+file('build.properties').withReader {
+    def prop = new Properties()
+    prop.load(it)
+    project.ext.config = new ConfigSlurper().parse prop
+}
+
+def signProps = [:]
+if (System.getenv("KEY_STORE")) {
+    println "Using Env variables for jar signing."
+    signProps['keyStore'] = System.getenv("KEY_STORE")
+    file(System.getenv("KEY_STORE_PROPS")).withReader {
+        def props = new Properties()
+        props.load(it)
+        signProps.putAll(props)
+    }
+} else if (project.hasProperty('keyStore')) {
+    println "Using Project properties for jar signing."
+    signProps['keyStore'] = project.getProperty('keyStore')
+    signProps['storePass'] = project.getProperty('keyStorePass')
+    signProps['alias'] = project.getProperty('keyStoreAlias')
+    signProps['keyPass'] = project.getProperty('keyStoreKeyPass')
+} else {
+    println 'No signing secrets found, build will not be signed.'
+}
+
+config.mod_version = "${config.mod_version}." + (System.getenv("BUILD_NUMBER") ?: "9999")
+version = "${config.mc_version}-${config.mod_version}"
+println "Starting build of ${archivesBaseName}, Version: ${config.mod_version}"
+println "Using Forge: ${config.forge_version}, for Minecraft: ${config.mc_version}"
 
 minecraft {
-    mappings channel: 'official', version: mc_version
+    mappings channel: 'official', version: config.mc_version
     accessTransformer = file("src/main/resources/META-INF/accesstransformer.cfg")
     runs {
         client {
             workingDirectory file('run')
-            mods { brandonscore { source sourceSets.main } }
+            mods { brandonscore { source sourceSets.main; source sourceSets.dev } }
         }
         server {
             workingDirectory file('run')
-            mods { brandonscore { source sourceSets.main } }
+            mods { brandonscore { source sourceSets.main; source sourceSets.dev } }
         }
         data {
             workingDirectory file('run')
@@ -50,10 +104,26 @@ mixin {
     add(sourceSets.main, "mixins.brandonscore.refmap.json")
 }
 
-configurations {
-    annotationProcessor.extendsFrom minecraft
+processResources {
+    inputs.property 'mod_version', config.mod_version
+    inputs.property 'mc_version', config.mc_version
+    inputs.property 'ccl_version', config.ccl_version
+
+    filesMatching('META-INF/mods.toml') {
+        expand 'file': ['jarVersion': config.mod_version],
+                'mc_version': config.mc_version,
+                'forge_version': config.forge_version,
+                'pi_version': config.pi_version.replace(".+", ""),
+                'lang_version': config.forge_version.split('\\.')[0],
+                'ccl_version': "[${config.ccl_version.replace(".+", "")},${config.ccl_version_max})"
+    }
 }
 
+configurations {
+    shadow
+    implementation.extendsFrom shadow
+    annotationProcessor.extendsFrom minecraft
+}
 
 repositories {
     mavenLocal()
@@ -62,103 +132,67 @@ repositories {
 }
 
 dependencies {
-    minecraft "net.neoforged:forge:${mc_version}-${neo_version}"
+    minecraft "net.minecraftforge:forge:${config.mc_version}-${config.forge_version}"
 
+//     implementation fg.deobf("com.brandon3055.projectintelligence:ProjectIntelligence:${config.mc_version}-${config.pi_version}:universal")
+    implementation fg.deobf("codechicken:CodeChickenLib:${config.mc_version}-${config.ccl_version}:universal")
 
-//     implementation fg.deobf("com.brandon3055.projectintelligence:ProjectIntelligence:${mc_version}-${pi_version}:universal")
-    implementation fg.deobf("io.codechicken:CodeChickenLib:${mc_version}-${ccl_version}:universal")
-
-    compileOnly(fg.deobf("mezz.jei:jei-${mc_version}-common-api:${jei_version}"))
-    compileOnly(fg.deobf("mezz.jei:jei-${mc_version}-forge-api:${jei_version}"))
-    runtimeOnly(fg.deobf("mezz.jei:jei-${mc_version}-forge:${jei_version}"))
+    compileOnly fg.deobf("mezz.jei:jei-${config.mc_version}-common-api:${config.jei_version}")
+    compileOnly fg.deobf("mezz.jei:jei-${config.mc_version}-forge-api:${config.jei_version}")
+    runtimeOnly fg.deobf("mezz.jei:jei-${config.mc_version}-forge:${config.jei_version}")
 }
 
-processResources {
-    inputs.property 'mod_version', mod_version
-    inputs.property 'mc_version', mc_version
-    inputs.property 'ccl_version', ccl_version
-
-    filesMatching('META-INF/mods.toml') {
-        expand 'file': ['jarVersion': mod_version],
-                'mc_version': mc_version,
-                'neo_version': neo_version,
-                'pi_version': pi_version,
-                'lang_version': neo_version.split('\\.')[0],
-                'ccl_version': "[${ccl_version.replace(".+", "")},${ccl_version_max})"
-    }
+reobf {
+    shadowJar {}
+    jar { enabled = false } // Disable jar.
 }
 
-def publishingMetadata = project.layout.buildDirectory.file("libs/$archivesBaseName-$version-publishing.json")
-def publishingMetadataTask = tasks.register("publishingMetadata") {
-    outputs.file(publishingMetadata)
-    doFirst {
-        publishingMetadata.get().asFile.text = JsonOutput.prettyPrint(JsonOutput.toJson([
-                [
-                        'displayName' : "Brandons Core ${version}",
-                        'mcVersion'   : "${mc_version}",
-                        'version'     : "${mod_version}",
-                        'classifier'  : 'universal',
-                        'modLoader'   : ['neoforge', 'forge'],
-                        'curseforgeId': '231382',
-                        'modrinthId'  : 'iFDWVIFV',
-                        'dependencies': [
-                                [
-                                        'modId'       : 'codechickenlib',
-                                        'type'        : 'required',
-                                        'modrinthId'  : '2gq0ALnz',
-                                        'curseforgeId': 'codechicken-lib-1-8'
-                                ]
-                        ]
-                ]
-        ]))
-    }
-}
+signing {
+    if (!signProps.isEmpty()) {
+        jars {
+            sign shadowJar
+            after 'reobfShadowJar'
 
-jar {
-    finalizedBy 'reobfJar'
-    finalizedBy 'signJar'
-    archiveClassifier = 'universal'
-    manifest {
-        attributes 'Specification-Title': archivesBaseName
-        attributes 'Specification-Vendor': 'brandon3055'
-        attributes 'Specification-Version': "1"
-        attributes 'Implementation-Title': archivesBaseName
-        attributes 'Implementation-Vendor': 'brandon3055'
-        attributes 'Implementation-Version': version
-        attributes 'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        attributes 'MixinConfigs': 'mixins.brandonscore.json'
-    }
-    from file("LICENSE")
-}
-
-tasks.register("signJar") {
-    dependsOn("jar")
-    dependsOn("reobfJar")
-
-    doFirst {
-        def args = [:]
-        args['jar'] = jar.archiveFile.get().asFile
-        if (System.getenv("KEY_STORE")) {
-            args['keyStore'] = System.getenv("KEY_STORE")
-            file(System.getenv("KEY_STORE_PROPS")).withReader {
-                def props = new Properties()
-                props.load(it)
-                args.putAll(props)
-            }
-        } else if (project.hasProperty('keyStore')) {
-            args['keyStore'] = project.getProperty('keyStore')
-            args['alias'] = project.getProperty('keyStoreAlias')
-            args['storePass'] = project.getProperty('keyStorePass')
-            args['keyPass'] = project.getProperty('keyStoreKeyPass')
-        } else {
-            println "No signing properties."
-            state.setOutcome(org.gradle.api.internal.tasks.TaskExecutionOutcome.UP_TO_DATE)
-            didWork = false
-            return
+            keyStore = signProps.keyStore
+            alias = signProps.alias
+            storePass = signProps.storePass
+            keyPass = signProps.keyPass
         }
-        project.ant.invokeMethod('signjar', args)
     }
 }
+
+
+def commonManifest = {
+    attributes 'Specification-Title': archivesBaseName
+    attributes 'Specification-Vendor': 'brandon3055'
+    attributes 'Specification-Version': "1"
+    attributes 'Implementation-Title': archivesBaseName
+    attributes 'Implementation-Vendor': 'brandon3055'
+    attributes 'Implementation-Version': version
+    attributes 'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+    attributes 'MixinConfigs': 'mixins.brandonscore.json'
+}
+
+jar.enabled = false
+shadowJar {
+    finalizedBy 'reobfShadowJar'
+    classifier = 'universal'
+    manifest commonManifest
+
+    configurations = [project.configurations.shadow]
+    from file("LICENSE")
+    // LGPL-2.1 licence text and NOTICE of the embedded CodeChickenLib Modular GUI code (plan §2.2).
+    from('src/mgui') { include 'LICENSE-CodeChickenLib.txt', 'NOTICE*' }
+}
+
+task srcJar(type: Jar) {
+    build.dependsOn it
+    from sourceSets.main.allSource
+    classifier = 'sources'
+    from file("LICENSE")
+    from('src/mgui') { include 'LICENSE-CodeChickenLib.txt', 'NOTICE*' }
+}
+
 
 publishing {
     repositories {
@@ -177,26 +211,25 @@ publishing {
             groupId project.group
             artifactId project.archivesBaseName
             version project.version
-            artifact jar
-            artifact sourcesJar
-            artifact(publishingMetadata) {
-                builtBy publishingMetadataTask
-                classifier 'publishing'
-            }
+            // The jar task is disabled; publish the reobfuscated shadow jar (classifier "universal").
+            artifact(shadowJar) { builtBy tasks.named("reobfShadowJar") }
+            artifact srcJar
+//            artifact deobfJar
 
             pom {
                 name = archivesBaseName
                 description = archivesBaseName
-                url = "https://github.com/brandon3055/${archivesBaseName}"
+                //The publish plugin doesnt like GString's here apparently..
+                url = "https://github.com/brandon3055/${archivesBaseName}".toString()
                 scm {
-                    url = "https://github.com/brandon3055/${archivesBaseName}"
-                    connection = "scm:git:git://github.com/brandon3055/${archivesBaseName}.git"
-                    connection = "scm:git:git@github.com:brandon3055/${archivesBaseName}.git"
+                    url = "https://github.com/brandon3055/${archivesBaseName}".toString()
+                    connection = "scm:git:git://github.com/brandon3055/${archivesBaseName}.git".toString()
+                    connection = "scm:git:git@github.com:brandon3055/${archivesBaseName}.git".toString()
                 }
 
                 issueManagement {
                     system = 'github'
-                    url = "https://github.com/brandon3055/${archivesBaseName}/issues"
+                    url = "https://github.com/brandon3055/${archivesBaseName}/issues".toString()
                 }
                 licenses {
                     license {
@@ -214,21 +247,4 @@ publishing {
             }
         }
     }
-}
-
-signing {
-    if (System.getenv('GPG_PRIVATE_KEY')) {
-        useInMemoryPgpKeys(
-                new File(System.getenv('GPG_PRIVATE_KEY')).text,
-                System.getenv('GPG_PRIVATE_KEY_PASS')
-        )
-    } else if (project.hasProperty('gpgPrivateKey')) {
-        useInMemoryPgpKeys(
-                new File(project.getProperty('gpgPrivateKey')).text,
-                project.getProperty('gpgPrivateKeyPass')
-        )
-    } else {
-        return
-    }
-    sign publishing.publications.BrandonsCore
 }
