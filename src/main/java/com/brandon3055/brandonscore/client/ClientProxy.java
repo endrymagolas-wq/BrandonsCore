@@ -76,7 +76,7 @@ public class ClientProxy extends CommonProxy {
 
         while(listiterator.hasNext()) {
             GuiMessage guimessage = listiterator.next();
-            if (signature.equals(guimessage.signature())) {
+            if (signature.equals(guimessage.headerSignature())) {
                 listiterator.remove();
                 mc.gui.getChat().refreshTrimmedMessage();
             }

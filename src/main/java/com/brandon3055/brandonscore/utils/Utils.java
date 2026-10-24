@@ -9,7 +9,6 @@ import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.MessageSignature;
 import net.minecraft.server.level.ChunkHolder;
-import net.minecraft.server.level.FullChunkStatus;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
@@ -426,14 +425,14 @@ public class Utils {
     }
 
 //    @Deprecated //Use world.isLoaded or world this.getChunkSource().hasChunk
-//    public static boolean isAreaLoaded(Level world, BlockPos pos, FullChunkStatus minimum) {
+//    public static boolean isAreaLoaded(Level world, BlockPos pos, ChunkHolder.FullChunkStatus minimum) {
 //        ChunkPos chunkPos = new ChunkPos(pos);
 //        ChunkAccess ichunk = world.getChunk(chunkPos.x, chunkPos.z, ChunkStatus.FULL, false);
 //        if (!(ichunk instanceof LevelChunk)) {
 //            return false;
 //        }
 //
-//        FullChunkStatus locationType = ((LevelChunk) ichunk).getFullStatus();
+//        ChunkHolder.FullChunkStatus locationType = ((LevelChunk) ichunk).getFullStatus();
 //        return locationType.isOrAfter(minimum);
 //    }
 

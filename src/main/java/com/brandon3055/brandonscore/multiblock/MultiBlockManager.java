@@ -28,7 +28,7 @@ import net.minecraftforge.fml.DistExecutor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Quaternionf;
+import com.mojang.math.Quaternion;
 
 import java.util.HashMap;
 import java.util.List;
@@ -123,7 +123,7 @@ public class MultiBlockManager extends SimpleJsonResourceReloadListener {
         MultiBlockDefinition definition = getDefinition(id);
 
         if (definition != null) {
-            for (Map.Entry<BlockPos, MultiBlockPart> entry : definition.getBlocks(new Rotation(new Quat(new Quaternionf().rotationXYZ((float) rotation.x * (float) torad, (float) rotation.y * (float) torad, (float) rotation.z * (float) torad)))).entrySet()) {
+            for (Map.Entry<BlockPos, MultiBlockPart> entry : definition.getBlocks(new Rotation(new Quat(Quaternion.fromXYZ((float) rotation.x * (float) torad, (float) rotation.y * (float) torad, (float) rotation.z * (float) torad)))).entrySet()) {
                 BlockPos offset = entry.getKey();
                 List<Block> blocks = Lists.newArrayList(entry.getValue().validBlocks());
                 if (!blocks.isEmpty()) {

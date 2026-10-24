@@ -7,19 +7,18 @@ license="CoFH \"Don't Be a Jerk\" License"
 	displayName="Brandon's Core"
     version="${file.jarVersion}"
 	authors="brandon3055"
-	description=''''''
-    updateJSONURL="https://version-check.covers1624.net/check/?mod=BrandonsCore&mc=${mc_version}"
+	description='''[Unofficial 1.19.2 port] Brandon's Core'''
 
 [[dependencies.brandonscore]]
     modId="forge"
     mandatory=true
-    versionRange="[${neo_version},)"
+    versionRange="[${forge_version},)"
     ordering="NONE"
     side="BOTH"
 [[dependencies.brandonscore]]
     modId="minecraft"
     mandatory=true
-    versionRange="[1.20.1]"
+    versionRange="[1.19.2,1.20)"
     ordering="NONE"
     side="BOTH"
 [[dependencies.brandonscore]]

@@ -140,7 +140,7 @@ public class FilterItem extends FilterBase {
         if (isTagMode()) {
             match = stack.is(getTag());
         } else if (!filterStack.isEmpty()) {
-            match = fuzzyMatch ? ItemStack.isSameItem(filterStack, stack) : ItemStack.isSameItemSameTags(filterStack, stack) && (filterStack.getCount() == stack.getCount() || !matchCount);
+            match = fuzzyMatch ? filterStack.sameItem(stack) : ItemStack.isSameItemSameTags(filterStack, stack) && (filterStack.getCount() == stack.getCount() || !matchCount);
         }
 
         if (filterStack.isEmpty() && !isTagMode()) {
