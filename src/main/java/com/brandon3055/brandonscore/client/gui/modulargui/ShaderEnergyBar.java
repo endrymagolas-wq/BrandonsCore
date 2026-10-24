@@ -19,7 +19,7 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.math.Axis;
+import com.mojang.math.Vector3f;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderStateShard;
@@ -166,7 +166,7 @@ public class ShaderEnergyBar extends GuiEnergyBar {
             posX = x;
             render.pose().pushPose();
             render.pose().translate(barLength + (posY * 2), 0, 0);
-            render.pose().mulPose(Axis.ZP.rotationDegrees(90));
+            render.pose().mulPose(Vector3f.ZP.rotationDegrees(90));
         }
 
         MultiBufferSource.BufferSource getter = render.buffers();

@@ -15,7 +15,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
-import org.joml.Matrix4f;
+import com.mojang.math.Matrix4f;
 
 import java.awt.*;
 
