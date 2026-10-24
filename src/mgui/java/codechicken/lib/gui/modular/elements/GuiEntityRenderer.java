@@ -8,7 +8,7 @@ import codechicken.lib.render.CCRenderEventHandler;
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
+import com.mojang.math.Vector3f;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -24,8 +24,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Matrix4f;
-import org.joml.Quaternionf;
+import com.mojang.math.Matrix4f;
+import com.mojang.math.Quaternion;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -185,8 +185,8 @@ public class GuiEntityRenderer extends GuiElement<GuiEntityRenderer> implements 
                         renderEntityInInventoryWithRotation(render, xPos, yPos, scale, force2dSize, rotation, living);
                     }
                 } else {
-                    Quaternionf quaternionf = new Quaternionf().rotateZ((float)Math.PI);
-                    Quaternionf quaternionf1 = Axis.YP.rotationDegrees(rotation);
+                    Quaternion quaternionf = Vector3f.ZP.rotation((float)Math.PI);
+                    Quaternion quaternionf1 = Vector3f.YP.rotationDegrees(rotation);
                     quaternionf.mul(quaternionf1);
                     renderEntityInInventory(render, xPos, yPos, scale, force2dSize, quaternionf, quaternionf1, entity);
                 }
@@ -214,8 +214,8 @@ public class GuiEntityRenderer extends GuiElement<GuiEntityRenderer> implements 
     }
 
     public static void renderEntityInInventoryFollowsAngle(GuiRender render, double pX, double pY, double pScale, boolean flat, float angleX, float angleY, LivingEntity pEntity) {
-        Quaternionf quaternionf = (new Quaternionf()).rotateZ((float)Math.PI);
-        Quaternionf quaternionf1 = (new Quaternionf()).rotateX(angleY * 20.0F * ((float)Math.PI / 180F));
+        Quaternion quaternionf = Vector3f.ZP.rotation((float)Math.PI);
+        Quaternion quaternionf1 = Vector3f.XP.rotation(angleY * 20.0F * ((float)Math.PI / 180F));
         quaternionf.mul(quaternionf1);
         float f2 = pEntity.yBodyRot;
         float f3 = pEntity.getYRot();
@@ -240,8 +240,8 @@ public class GuiEntityRenderer extends GuiElement<GuiEntityRenderer> implements 
     }
 
     public static void renderEntityInInventoryWithRotation(GuiRender render, double xPos, double yPos, double scale, boolean flat, double rotation, LivingEntity living) {
-        Quaternionf quaternionf = new Quaternionf().rotateZ((float)Math.PI);
-        Quaternionf quaternionf1 = Axis.YP.rotationDegrees((float) rotation);
+        Quaternion quaternionf = Vector3f.ZP.rotation((float)Math.PI);
+        Quaternion quaternionf1 = Vector3f.YP.rotationDegrees((float) rotation);
         quaternionf.mul(quaternionf1);
         float f2 = living.yBodyRot;
         float f3 = living.getYRot();
@@ -261,11 +261,11 @@ public class GuiEntityRenderer extends GuiElement<GuiEntityRenderer> implements 
         living.yHeadRot = f6;
     }
 
-    public static void renderEntityInInventory(GuiRender render, double pX, double pY, double pScale, Quaternionf quat, @Nullable Quaternionf pCameraOrientation, Entity pEntity) {
+    public static void renderEntityInInventory(GuiRender render, double pX, double pY, double pScale, Quaternion quat, @Nullable Quaternion pCameraOrientation, Entity pEntity) {
         renderEntityInInventory(render, pX, pY, pScale, false, quat, pCameraOrientation, pEntity);
     }
 
-    public static void renderEntityInInventory(GuiRender render, double pX, double pY, double pScale, boolean flat, Quaternionf quat, @Nullable Quaternionf pCameraOrientation, Entity pEntity) {
+    public static void renderEntityInInventory(GuiRender render, double pX, double pY, double pScale, boolean flat, Quaternion quat, @Nullable Quaternion pCameraOrientation, Entity pEntity) {
         render.pose().pushPose();
         render.pose().translate(pX, pY, 50.0D);
         render.pose().mulPoseMatrix((new Matrix4f()).scaling((float)pScale, (float)pScale, flat ? -1 : (float)(-pScale)));

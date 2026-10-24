@@ -7,7 +7,7 @@ import codechicken.lib.gui.modular.lib.geometry.GeoParam;
 import codechicken.lib.gui.modular.lib.geometry.GuiParent;
 import codechicken.lib.gui.modular.lib.geometry.Position;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
+import com.mojang.math.Vector3f;
 import net.minecraft.client.gui.Font;
 import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
@@ -227,7 +227,7 @@ public class GuiText extends GuiElement<GuiText> implements ForegroundRender {
         if (rotation != null) {
             stack.pushPose();
             stack.translate(xMin() + rotatePoint.x(), yMin() + rotatePoint.y(), 0);
-            stack.mulPose(Axis.ZP.rotationDegrees(rotation.get().floatValue()));
+            stack.mulPose(Vector3f.ZP.rotationDegrees(rotation.get().floatValue()));
             stack.translate(-xMin() - rotatePoint.x(), -yMin() - rotatePoint.y(), 0);
         }
 

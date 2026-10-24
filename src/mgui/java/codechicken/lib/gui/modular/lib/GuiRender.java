@@ -39,14 +39,14 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
-import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.client.renderer.block.model.ItemTransforms;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.client.ForgeHooksClient;
 import net.minecraftforge.client.event.RenderTooltipEvent;
 import net.minecraftforge.common.MinecraftForge;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Matrix4f;
+import com.mojang.math.Matrix4f;
 import org.joml.Vector2ic;
 
 import java.util.List;
@@ -658,8 +658,8 @@ public class GuiRender {
 //     * @param rotation Rotates sprite clockwise in 90 degree steps.
 //     */
 //    public void partialSprite(RenderType type, double xMin, double yMin, double xMax, double yMax, int rotation, TextureAtlasSprite sprite, int texXMin, int texYMin, int texXMax, int texYMax, int argb) {
-//        float width = sprite.contents().width();
-//        float height = sprite.contents().height();
+//        float width = sprite.getWidth();
+//        float height = sprite.getHeight();
 //        partialSprite(type, xMin, yMin, xMax, yMax, rotation, sprite, texXMin / width, texYMin / height, texXMax / width, texYMax / height, argb);
 //    }
 //
@@ -727,8 +727,8 @@ public class GuiRender {
      * Except the input uv values are in texture coordinates. So to draw a full 16x16 sprite with this you would supply 0, 0, 16, 16
      */
     public void partialSpriteTex(RenderType type, double xMin, double yMin, double xMax, double yMax, TextureAtlasSprite sprite, double texXMin, double texYMin, double texXMax, double texYMax, float red, float green, float blue, float alpha) {
-        int width = sprite.contents().width();
-        int height = sprite.contents().height();
+        int width = sprite.getWidth();
+        int height = sprite.getHeight();
         partialSprite(type, xMin, yMin, xMax, yMax, sprite, (float) texXMin / width, (float) texYMin / height, (float) texXMax / width, (float) texYMax / height, red, green, blue, alpha);
     }
 
@@ -767,7 +767,7 @@ public class GuiRender {
      * Sprite is drawn from the top-left so sprite will be tiled right and down.
      */
     public void tileSprite(RenderType type, double xMin, double yMin, double xMax, double yMax, TextureAtlasSprite sprite, int argb) {
-        tileSprite(type, xMin, yMin, xMax, yMax, sprite, sprite.contents().width(), sprite.contents().height(), argb);
+        tileSprite(type, xMin, yMin, xMax, yMax, sprite, sprite.getWidth(), sprite.getHeight(), argb);
     }
 
     /**
@@ -786,7 +786,7 @@ public class GuiRender {
      * Sprite is drawn from the top-left so sprite will be tiled right and down.
      */
     public void tileSprite(RenderType type, double xMin, double yMin, double xMax, double yMax, TextureAtlasSprite sprite, float red, float green, float blue, float alpha) {
-        tileSprite(type, xMin, yMin, xMax, yMax, sprite, sprite.contents().width(), sprite.contents().height(), red, green, blue, alpha);
+        tileSprite(type, xMin, yMin, xMax, yMax, sprite, sprite.getWidth(), sprite.getHeight(), red, green, blue, alpha);
     }
 
     /**
@@ -1129,8 +1129,8 @@ public class GuiRender {
     }
 
     private void bufferDynamic(VertexConsumer builder, Matrix4f mat, TextureAtlasSprite tex, int x, int y, double textureX, double textureY, int width, int height, float red, float green, float blue, float alpha) {
-        int w = tex.contents().width();
-        int h = tex.contents().height();
+        int w = tex.getWidth();
+        int h = tex.getHeight();
         //@formatter:off
         builder.vertex(mat, x,         y + height, 0).color(red, green, blue, alpha).uv(tex.getU((textureX / w) * 16D),          tex.getV(((textureY + height) / h) * 16)).endVertex();
         builder.vertex(mat, x + width, y + height, 0).color(red, green, blue, alpha).uv(tex.getU(((textureX + width) / w) * 16), tex.getV(((textureY + height) / h) * 16)).endVertex();
@@ -1150,7 +1150,7 @@ public class GuiRender {
 
     public int drawString(@Nullable String message, double x, double y, int colour, boolean shadow) {
         if (message == null) return 0;
-        int i = font().drawInBatch(message, (float) x, (float) y, colour, shadow, pose.last().pose(), buffers, Font.DisplayMode.NORMAL, 0, 15728880, font().isBidirectional());
+        int i = font().drawInBatch(message, (float) x, (float) y, colour, shadow, pose.last().pose(), buffers, false, 0, 15728880, font().isBidirectional());
         this.flushIfUnBatched();
         return i;
     }
@@ -1163,7 +1163,7 @@ public class GuiRender {
     }
 
     public int drawString(FormattedCharSequence message, double x, double y, int colour, boolean shadow) {
-        int i = font().drawInBatch(message, (float) x, (float) y, colour, shadow, pose.last().pose(), buffers, Font.DisplayMode.NORMAL, 0, 15728880);
+        int i = font().drawInBatch(message, (float) x, (float) y, colour, shadow, pose.last().pose(), buffers, false, 0, 15728880);
         this.flushIfUnBatched();
         return i;
     }
@@ -1464,7 +1464,7 @@ public class GuiRender {
      * Important Note: Required z clearance is size*2, This must be accounted for when setting the z depth in an element using this render method.
      */
     public void renderItem(LivingEntity entity, ItemStack stack, double x, double y, double size, int modelRand) {
-        this.renderItem(entity, entity.level(), stack, x, y, size, modelRand);
+        this.renderItem(entity, entity.level, stack, x, y, size, modelRand);
     }
 
     /**
@@ -1484,7 +1484,7 @@ public class GuiRender {
                 pose.scale((float) size, (float) size, (float) size);
                 boolean flag = !bakedmodel.usesBlockLight();
                 if (flag) Lighting.setupForFlatItems();
-                mc().getItemRenderer().render(stack, ItemDisplayContext.GUI, false, pose, buffers, 0xf000f0, OverlayTexture.NO_OVERLAY, bakedmodel);
+                mc().getItemRenderer().render(stack, ItemTransforms.TransformType.GUI, false, pose, buffers, 0xf000f0, OverlayTexture.NO_OVERLAY, bakedmodel);
                 this.flush();
                 if (flag) Lighting.setupFor3DItems();
             } catch (Throwable throwable) {

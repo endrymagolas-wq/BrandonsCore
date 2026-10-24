@@ -135,7 +135,7 @@ public class GuiProgressIcon extends GuiElement<GuiProgressIcon> implements Back
             double height = direction.getAxis() == Axis.X ? ySize() : xSize();
 
             render.pose().translate(xMin() + (xSize() / 2), yMin() + (ySize() / 2), 0);
-            render.pose().mulPose(com.mojang.math.Axis.ZP.rotationDegrees((float) Direction.RIGHT.rotationTo(direction)));
+            render.pose().mulPose(com.mojang.math.Vector3f.ZP.rotationDegrees((float) Direction.RIGHT.rotationTo(direction)));
 
             double halfWidth = width / 2;
             double halfHeight = height / 2;
