@@ -1,0 +1,27 @@
+NOTICE - CodeChickenLib Modular GUI (mgui) in BrandonsCore 1.19.2 (unofficial port)
+======================================================================================
+
+This BrandonsCore jar contains a MODIFIED version of parts of CodeChickenLib
+(https://github.com/TheCBProject/CodeChickenLib), licensed under the
+GNU Lesser General Public License, version 2.1 (full text: LICENSE-CodeChickenLib.txt
+in the root of this jar).
+
+Included CodeChickenLib code ("Modular GUI"), backported from CodeChickenLib 1.20.1
+(commit 3b43c7fe055aaae997038910c78f4761fdee90cc) to Minecraft 1.19.2 / Forge 43:
+  - codechicken.lib.gui.modular (and sub packages .elements, .lib, .lib.container,
+    .lib.geometry, .sprite)
+  - codechicken.lib.inventory.container.modular, codechicken.lib.inventory.container.data
+  - codechicken.lib.internal.compat.JEIPlugin
+  - codechicken.lib.gui.modular.lib.FormatUtil (relocated from codechicken.lib.util)
+  - assets/codechickenlib/textures/gui/** and the mgui keys of assets/codechickenlib/lang/en_us.json
+together with BrandonsCore glue code in com.brandon3055.brandonscore.mgui, which is
+distributed under the same LGPL-2.1 terms.
+
+Every modified source file carries a notice stating that it was changed; the complete
+history of the changes is in the source repository:
+  Source: <fork URL, to be filled in before any distribution>/tree/port/1.19.2/src/mgui
+
+This is NOT an official CodeChickenLib or BrandonsCore release and is not supported by
+their authors. It requires the stock CodeChickenLib 1.19.2 (4.3.2 or newer) at runtime.
+
+The rest of BrandonsCore is licensed separately (see LICENSE.md of BrandonsCore).
