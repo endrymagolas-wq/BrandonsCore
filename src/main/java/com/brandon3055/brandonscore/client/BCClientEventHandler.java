@@ -10,11 +10,14 @@ import com.brandon3055.brandonscore.BrandonsCore;
 import com.brandon3055.brandonscore.api.IFOVModifierItem;
 import com.brandon3055.brandonscore.blocks.BlockBCore;
 import com.brandon3055.brandonscore.client.render.BlockEntityRendererTransparent;
+import com.brandon3055.brandonscore.client.render.ShaderModCompat;
+import com.brandon3055.brandonscore.client.render.TransparentPassTracker;
 import com.brandon3055.brandonscore.handlers.BCEventHandler;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import net.covers1624.quack.util.CrashLock;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -42,6 +45,7 @@ import net.minecraftforge.client.event.RenderHighlightEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -66,6 +70,8 @@ public class BCClientEventHandler {
     private static int renderIndex = 0;
     private static LinkedList<ResourceKey<Level>> sortingOrder = new LinkedList<>();
     public static int elapsedTicks = 0;
+    //PORT(1.19.2) WP-13 R1: block entities already given their transparent draw in the current pass (identity).
+    private final Set<BlockEntity> transparentDrawn = new ReferenceOpenHashSet<>();
 
     private static Comparator<ResourceKey<Level>> sorter = (value, compare) -> {
         long totalValue = 0;
@@ -87,6 +93,8 @@ public class BCClientEventHandler {
         LOCK.lock();
 
         MinecraftForge.EVENT_BUS.register(new BCClientEventHandler());
+        //PORT(1.19.2) WP-13 R2: log-only hint when Oculus is installed (no behaviour change).
+        ShaderModCompat.logStartupHints();
     }
 
     @SubscribeEvent
@@ -173,13 +181,16 @@ public class BCClientEventHandler {
         double camX = vec3.x();
         double camY = vec3.y();
         double camZ = vec3.z();
+        //PORT(1.19.2) WP-13 R1: each block entity gets at most one transparent draw per pass.
+        Set<BlockEntity> drawn = transparentDrawn;
+        drawn.clear();
 
         for (LevelRenderer.RenderChunkInfo renderChunkInfo : levelRenderer.renderChunksInFrustum) {
             List<BlockEntity> list = renderChunkInfo.chunk.getCompiledChunk().getRenderableBlockEntities();
             for (BlockEntity tile : list) {
                 if (!event.getFrustum().isVisible(tile.getRenderBoundingBox())) continue;
                 BlockEntityRenderer<BlockEntity> renderer = tileRenderDispatcher.getRenderer(tile);
-                if (renderer instanceof BlockEntityRendererTransparent<BlockEntity> rendererTransparent) {
+                if (renderer instanceof BlockEntityRendererTransparent<BlockEntity> rendererTransparent && drawn.add(tile)) {
                     BlockPos pos = tile.getBlockPos();
                     poseStack.pushPose();
                     poseStack.translate((double) pos.getX() - camX, (double) pos.getY() - camY, (double) pos.getZ() - camZ);
@@ -193,7 +204,7 @@ public class BCClientEventHandler {
             for (BlockEntity tile : levelRenderer.globalBlockEntities) {
                 if (!event.getFrustum().isVisible(tile.getRenderBoundingBox())) continue;
                 BlockEntityRenderer<BlockEntity> renderer = tileRenderDispatcher.getRenderer(tile);
-                if (renderer instanceof BlockEntityRendererTransparent<BlockEntity> rendererTransparent) {
+                if (renderer instanceof BlockEntityRendererTransparent<BlockEntity> rendererTransparent && drawn.add(tile)) {
                     BlockPos blockpos3 = tile.getBlockPos();
                     poseStack.pushPose();
                     poseStack.translate((double) blockpos3.getX() - camX, (double) blockpos3.getY() - camY, (double) blockpos3.getZ() - camZ);
@@ -201,6 +212,38 @@ public class BCClientEventHandler {
                     poseStack.popPose();
                 }
             }
+        }
+
+        //PORT(1.19.2) WP-13 R1: Rubidium leaves both vanilla lists above empty. Block entities that the active renderer
+        //(vanilla, Rubidium, ...) actually drew this frame are captured from BlockEntityRenderDispatcher (TransparentPassTracker);
+        //draw the ones the vanilla walk did not reach, with the same checks. With vanilla chunk rendering this adds nothing.
+        TransparentPassTracker.drain(tile -> {
+            if (drawn.contains(tile) || !event.getFrustum().isVisible(tile.getRenderBoundingBox())) return;
+            BlockEntityRenderer<BlockEntity> renderer = tileRenderDispatcher.getRenderer(tile);
+            if (renderer instanceof BlockEntityRendererTransparent<BlockEntity> rendererTransparent && drawn.add(tile)) {
+                BlockPos pos = tile.getBlockPos();
+                poseStack.pushPose();
+                poseStack.translate((double) pos.getX() - camX, (double) pos.getY() - camY, (double) pos.getZ() - camZ);
+                renderTransparent(camera, rendererTransparent, tile, event.getPartialTick(), poseStack, buffers);
+                poseStack.popPose();
+            }
+        });
+        drawn.clear();
+    }
+
+    //PORT(1.19.2) WP-13 R1: per-frame reset of the captured transparent-pass block entities (see TransparentPassTracker).
+    @SubscribeEvent
+    public void renderTickStart(TickEvent.RenderTickEvent event) {
+        if (event.phase == TickEvent.Phase.START) {
+            TransparentPassTracker.reset();
+        }
+    }
+
+    @SubscribeEvent
+    public void clientLevelUnload(LevelEvent.Unload event) {
+        if (event.getLevel().isClientSide()) {
+            TransparentPassTracker.reset();
+            transparentDrawn.clear();
         }
     }
 
