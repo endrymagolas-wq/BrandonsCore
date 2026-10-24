@@ -1,6 +1,5 @@
 package codechicken.lib.internal.compat;
 
-import codechicken.lib.CodeChickenLib;
 import codechicken.lib.gui.modular.ModularGui;
 import codechicken.lib.gui.modular.ModularGuiContainer;
 import codechicken.lib.gui.modular.elements.GuiElement;
@@ -21,11 +20,15 @@ import java.util.Collections;
 import java.util.List;
 
 /**
+ * 1.19.2 backport notes (BrandonsCore 1.19.2 port, WP-10b): ships inside BrandonsCore (stock CCL 4.3.2 has no
+ * modular GUI and no such plugin), so the plugin UID is {@code brandonscore:mgui_jei}; built against the JEI 11.6
+ * (1.19.2) API, whose {@link IGhostIngredientHandler} still has the abstract untyped {@code getTargets}.
+ * <p>
  * Created by brandon3055 on 31/12/2023
  */
 @JeiPlugin
 public class JEIPlugin implements IModPlugin {
-    private static final ResourceLocation ID = new ResourceLocation(CodeChickenLib.MOD_ID, "jei_plugin");
+    private static final ResourceLocation ID = new ResourceLocation("brandonscore", "mgui_jei");
 
     public JEIPlugin() {
     }
@@ -58,6 +61,23 @@ public class JEIPlugin implements IModPlugin {
             if (!doStart) return Collections.emptyList();
             List<Target<I>> targets = new ArrayList<>();
             ingredient.getIngredient(VanillaTypes.ITEM_STACK).ifPresent(stack -> gui.getJeiDropTargets().forEach(e -> targets.add(new DropTarget<>(e))));
+            return targets;
+        }
+
+        /**
+         * JEI 11.x (1.19.2): abstract untyped variant (the typed default above is what JEI 11 calls; this one is
+         * required by the interface). Same behaviour, the ingredient must be an ItemStack.
+         */
+        @Override
+        public <I> List<Target<I>> getTargets(ModularGuiContainer screen, I ingredient, boolean doStart) {
+            gui = screen.getModularGui();
+            gui.setJeiHighlightTime(doStart ? 60 * 20 : 3 * 20);
+            highlight = !doStart;
+            if (!doStart) return Collections.emptyList();
+            List<Target<I>> targets = new ArrayList<>();
+            if (ingredient instanceof ItemStack) {
+                gui.getJeiDropTargets().forEach(e -> targets.add(new DropTarget<>(e)));
+            }
             return targets;
         }
 
