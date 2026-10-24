@@ -2,11 +2,11 @@ package com.brandon3055.brandonscore.client.gui.modulargui;
 
 import codechicken.lib.gui.modular.elements.GuiEnergyBar;
 import codechicken.lib.gui.modular.elements.GuiRectangle;
+import codechicken.lib.gui.modular.lib.FormatUtil;
 import codechicken.lib.gui.modular.lib.GuiRender;
 import codechicken.lib.gui.modular.lib.geometry.GuiParent;
 import codechicken.lib.gui.modular.sprite.Material;
 import codechicken.lib.render.buffer.TransformingVertexConsumer;
-import codechicken.lib.util.FormatUtil;
 import com.brandon3055.brandonscore.BCConfig;
 import com.brandon3055.brandonscore.api.power.IOInfo;
 import com.brandon3055.brandonscore.api.power.IOPStorage;
