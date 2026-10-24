@@ -6,6 +6,7 @@ import com.brandon3055.brandonscore.client.model.EquippedItemModelLayer;
 import com.brandon3055.brandonscore.client.shader.BCShaders;
 import com.brandon3055.brandonscore.handlers.contributor.ContributorHandler;
 import com.brandon3055.brandonscore.lib.DLRSCache;
+import com.brandon3055.brandonscore.mgui.MGuiBootstrap;
 import com.brandon3055.brandonscore.utils.BCProfiler;
 import net.covers1624.quack.util.CrashLock;
 import net.minecraft.client.Minecraft;
@@ -29,6 +30,9 @@ public class ClientInit {
         LOCK.lock();
 
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
+        //PORT(1.19.2): The embedded Modular GUI (src/mgui) has no CCL ClientInit of its own on 1.19.2.
+        //This registers what CCL 1.20 internal/ClientInit does for it (CCGuiTextures atlas + CursorHelper reload listeners).
+        MGuiBootstrap.initClient(modBus);
         modBus.addListener(BCGuiTextures::onResourceReload);
         modBus.addListener(ClientInit::clientSetupEvent);
         modBus.addListener(ClientInit::onAddRenderLayers);
