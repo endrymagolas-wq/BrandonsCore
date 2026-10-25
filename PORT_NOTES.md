@@ -49,3 +49,28 @@ private immediate buffers for DE block-entity draws; not verifiable without a cl
 client setup when Oculus is loaded (`ShaderModCompat.logStartupHints`, no behaviour change). Mitigations for players:
 turn the shader pack off, or set `Client.fancyToolModels=false` and `Client.guardianShaders=false` in
 `config/brandon3055/DraconicEvolution.cfg`.
+
+## VBO render types: VAO fix and immediate draws (fix/vbo-bind, BC 3.2.1.9008)
+
+**VAO corruption (CCL 4.3.2).** Stock CodeChickenLib 4.3.2 `codechicken.lib.render.buffer.VBORenderType` uploads and
+draws its `VertexBuffer` without `bind()`. On 1.19.2 a `VertexBuffer` owns a VAO, so the upload/draw goes into whatever
+VAO is bound at that moment (vanilla's immediate-mode buffers). Symptoms seen in game: invisible items in GUIs, black or
+garbage geometry after a DE chestpiece / fancy tool / contributor wing model was drawn. Fix:
+`com.brandon3055.brandonscore.mgui.render.BindingVBORenderType` (LGPL `src/mgui` tree, header names its origin) is a
+copy of the CCL 4.3.2 class that binds the buffer around `upload` and `drawWithShader` and unbinds afterwards, like
+CCL 1.20.1 does. BC `ContributorModel` and the DE VBO users (chestpiece, tool models) use it instead of the CCL class.
+CCL itself is unchanged (stock 4.3.2.490 jar).
+
+**Immediate draws (`WithCallbacks.drawImmediate()`).** A VBO render type only draws inside `RenderType.end(...)`, which
+vanilla's `MultiBufferSource.BufferSource` calls on `endBatch`. Oculus (even with no shader pack active) and
+ImmediatelyFast replace the buffer sources with batching sources that draw the collected geometry themselves and never
+call `end` on the type, so a VBO type handed to `buffers.getBuffer(...)` was never drawn (chestpiece missing on the
+body, fancy 3D tools missing). All VBO submits now call `drawImmediate()` (setup state, draw, clear state) at the point
+where the type used to be requested; the current `RenderSystem` matrices are the ones the batched draw would have used,
+so the result is identical under vanilla. BC site: `ContributorModel.WingBoneRenderer`; DE sites: `ToolRenderBase`
+(4) and `ModularChestpieceModel` (3). Verified in a dev client and in the user's pack (shaders off). With an Oculus
+shader pack active the custom-shader models stay invisible (R2 above, not changed by this fix).
+
+**Cursor reload.** mgui `CursorHelper.onResourceReload` destroyed all cached GLFW cursors, including the one GLFW was
+using, which left the window without a cursor after a resource reload while a custom cursor was active. It now resets
+the active cursor (`glfwSetCursor(window, NULL)`) before destroying the cached ones.
