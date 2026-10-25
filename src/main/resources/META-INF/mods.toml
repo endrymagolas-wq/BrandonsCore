@@ -8,6 +8,7 @@ license="CoFH \"Don't Be a Jerk\" License"
     version="${file.jarVersion}"
 	authors="brandon3055"
 	description='''[Unofficial 1.19.2 port] Brandon's Core'''
+	displayURL="https://github.com/endrymagolas-wq/BrandonsCore/tree/port/1.19.2"
 
 [[dependencies.brandonscore]]
     modId="forge"

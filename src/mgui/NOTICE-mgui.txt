@@ -19,7 +19,7 @@ distributed under the same LGPL-2.1 terms.
 
 Every modified source file carries a notice stating that it was changed; the complete
 history of the changes is in the source repository:
-  Source: <fork URL, to be filled in before any distribution>/tree/port/1.19.2/src/mgui
+  Source: https://github.com/endrymagolas-wq/BrandonsCore/tree/port/1.19.2/src/mgui
 
 This is NOT an official CodeChickenLib or BrandonsCore release and is not supported by
 their authors. It requires the stock CodeChickenLib 1.19.2 (4.3.2 or newer) at runtime.
