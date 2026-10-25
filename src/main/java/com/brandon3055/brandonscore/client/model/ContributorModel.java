@@ -436,7 +436,7 @@ public class ContributorModel<T extends LivingEntity> extends HumanoidModel<T> i
             if (zRot != 0) mat.apply(new Rotation(zRot * torad, Vector3.Z_POS).at(pivot));
             BindingVBORenderType type = fancy ? chaos ? chaosType : fancyType : baseType;
             BCShader<?> shader = fancy ? chaos ? BCShaders.CHAOS_ENTITY_SHADER : BCShaders.WINGS_BONE_SHADER : BCShaders.CONTRIB_BASE_SHADER;
-            buffers.getBuffer(type.withCallback(() -> shader.getModelMatUniform().glUniformMatrix4f(mat)));
+            type.withCallback(() -> shader.getModelMatUniform().glUniformMatrix4f(mat)).drawImmediate();
             RenderUtils.endBatch(buffers);
 
             if (shell != null && fancy) {

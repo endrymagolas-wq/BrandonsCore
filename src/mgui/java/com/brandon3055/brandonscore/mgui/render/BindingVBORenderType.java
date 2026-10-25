@@ -159,6 +159,18 @@ public class BindingVBORenderType extends DelegateRenderType implements AutoClos
             clearRenderState();
         }
 
+        /**
+         * 1.19.2 port: draw right now instead of handing this type to a MultiBufferSource. Batching buffer sources that
+         * replace vanilla's (Oculus/Iris for entities, ImmediatelyFast for HUD items) draw collected geometry themselves and
+         * never call {@link #end}, so a VBO type given to them is never drawn. The current RenderSystem matrices are the
+         * ones the batched draw would have used, so the result is the same.
+         */
+        public void drawImmediate() {
+            setupRenderState();
+            render();
+            clearRenderState();
+        }
+
         @Override
         public void clearRenderState() {
             for (RenderStateShard state : shards) {
