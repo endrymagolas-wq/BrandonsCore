@@ -3,7 +3,7 @@ package com.brandon3055.brandonscore.client.model;
 import codechicken.lib.render.CCModel;
 import codechicken.lib.render.CCRenderState;
 import codechicken.lib.render.buffer.TransformingVertexConsumer;
-import codechicken.lib.render.buffer.VBORenderType;
+import com.brandon3055.brandonscore.mgui.render.BindingVBORenderType;
 import codechicken.lib.render.model.OBJParser;
 import codechicken.lib.vec.Matrix4;
 import codechicken.lib.vec.Rotation;
@@ -394,9 +394,9 @@ public class ContributorModel<T extends LivingEntity> extends HumanoidModel<T> i
 
     public static class WingBoneRenderer {
         private WingBoneRenderer shell = null;
-        private final VBORenderType baseType;
-        private VBORenderType fancyType;
-        private VBORenderType chaosType;
+        private final BindingVBORenderType baseType;
+        private BindingVBORenderType fancyType;
+        private BindingVBORenderType chaosType;
         private final Vector3 pivot;
         public double xRot = 0;
         public double yRot = 0;
@@ -404,20 +404,20 @@ public class ContributorModel<T extends LivingEntity> extends HumanoidModel<T> i
 
         public WingBoneRenderer(CCModel model, Vector3 pivot, boolean core) {
             this.pivot = pivot.multiply(1 / 16D);
-            this.baseType = new VBORenderType(BONE_TYPE, (format, builder) -> {
+            this.baseType = new BindingVBORenderType(BONE_TYPE, (format, builder) -> {
                 CCRenderState ccrs = CCRenderState.instance();
                 ccrs.reset();
                 ccrs.bind(builder, format);
                 model.render(ccrs);
             });
             if (core) {
-                this.fancyType = new VBORenderType(BONE_SHADER_TYPE, (format, builder) -> {
+                this.fancyType = new BindingVBORenderType(BONE_SHADER_TYPE, (format, builder) -> {
                     CCRenderState ccrs = CCRenderState.instance();
                     ccrs.reset();
                     ccrs.bind(builder, format);
                     model.render(ccrs);
                 });
-                this.chaosType = new VBORenderType(BONE_CHAOS_TYPE, (format, builder) -> {
+                this.chaosType = new BindingVBORenderType(BONE_CHAOS_TYPE, (format, builder) -> {
                     CCRenderState ccrs = CCRenderState.instance();
                     ccrs.reset();
                     ccrs.bind(builder, format);
@@ -434,9 +434,9 @@ public class ContributorModel<T extends LivingEntity> extends HumanoidModel<T> i
             if (xRot != 0) mat.apply(new Rotation(xRot * torad, Vector3.X_POS).at(pivot));
             if (yRot != 0) mat.apply(new Rotation(yRot * torad, Vector3.Y_POS).at(pivot));
             if (zRot != 0) mat.apply(new Rotation(zRot * torad, Vector3.Z_POS).at(pivot));
-            VBORenderType type = fancy ? chaos ? chaosType : fancyType : baseType;
+            BindingVBORenderType type = fancy ? chaos ? chaosType : fancyType : baseType;
             BCShader<?> shader = fancy ? chaos ? BCShaders.CHAOS_ENTITY_SHADER : BCShaders.WINGS_BONE_SHADER : BCShaders.CONTRIB_BASE_SHADER;
-            buffers.getBuffer(type.withCallback(() -> shader.getModelMatUniform().glUniformMatrix4f(mat)));
+            type.withCallback(() -> shader.getModelMatUniform().glUniformMatrix4f(mat)).drawImmediate();
             RenderUtils.endBatch(buffers);
 
             if (shell != null && fancy) {
