@@ -90,6 +90,11 @@ public class CursorHelper {
     }
 
     public static void onResourceReload() {
+        // 1.19.2 port fix: never destroy the cursor GLFW is currently using (the window would show no cursor at all).
+        if (active != null) {
+            active = null;
+            GLFW.glfwSetCursor(Minecraft.getInstance().getWindow().getWindow(), MemoryUtil.NULL);
+        }
         cursors.values().forEach(cursor -> {
             if (cursor != MemoryUtil.NULL) {
                 GLFW.glfwDestroyCursor(cursor);
